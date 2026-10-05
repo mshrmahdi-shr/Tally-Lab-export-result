@@ -1,0 +1,3761 @@
+<!DOCTYPE html>
+<!-- saved from url=(0085)file:///C:/Users/Mahdi/Downloads/COA_Tally_Processor_v25_3_SHORT_PHC_NAMES_FIXED.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COA Tally Processor — Contaminant Table Checker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0c0e;
+    --panel:#141518;
+    --panel-border:#25272b;
+    --text:#e7e7e5;
+    --muted:#8a8d93;
+    --accent:#c98a3a;
+    --accent-soft:#e8b877;
+    --mono: "SFMono-Regular", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; color:var(--text); font-family:var(--sans); line-height:1.5; min-height:100vh;
+    background:
+      radial-gradient(1100px 500px at 80% -10%, rgba(201,138,58,0.10), transparent 60%),
+      radial-gradient(900px 420px at -10% 0%, rgba(58,110,201,0.07), transparent 55%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+  header{
+    position:relative;
+    border-bottom:1px solid var(--panel-border);
+    padding:48px 32px 38px;
+    background:linear-gradient(180deg, rgba(201,138,58,0.06) 0%, transparent 100%);
+    overflow:hidden;
+  }
+  header::after{
+    content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px;
+    background:linear-gradient(90deg, transparent 0%, var(--accent) 18%, var(--accent-soft) 50%, var(--accent) 82%, transparent 100%);
+    opacity:0.55;
+  }
+  header .backlink{color:var(--muted); text-decoration:none; font-size:13px; transition:color .15s ease;}
+  header .backlink:hover{color:var(--accent-soft);}
+  .brand{
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    gap:10px; margin-top:22px;
+    animation:brandIn .7s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes brandIn{
+    0%{opacity:0; transform:translateY(10px);}
+    100%{opacity:1; transform:translateY(0);}
+  }
+  .brand-mark{
+    width:60px; height:60px; border-radius:16px; flex-shrink:0;
+    background:linear-gradient(135deg, #e8b877 0%, #b3792f 55%, #915f22 100%);
+    color:#171000; font-weight:800; font-size:20px; letter-spacing:0.02em;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 20px rgba(201,138,58,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+    font-family:Georgia, serif;
+    position:relative;
+    animation:markGlow 4s ease-in-out infinite;
+  }
+  @keyframes markGlow{
+    0%,100%{box-shadow:0 6px 20px rgba(201,138,58,0.4), inset 0 1px 0 rgba(255,255,255,0.35);}
+    50%{box-shadow:0 6px 30px rgba(201,138,58,0.7), inset 0 1px 0 rgba(255,255,255,0.4);}
+  }
+  h1{
+    font-size:26px; margin:2px 0 0; letter-spacing:0.2px; font-weight:800;
+    background:linear-gradient(90deg, #f2ede4 0%, #e8b877 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .tagline{
+    position:relative; overflow:hidden;
+    display:inline-block; margin:2px 0 4px;
+    font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--accent-soft);
+    border:1px solid rgba(201,138,58,0.4); border-radius:20px;
+    padding:5px 16px;
+    background:rgba(201,138,58,0.07);
+  }
+  .tagline::before{
+    content:''; position:absolute; top:0; left:-60%; width:40%; height:100%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+    animation:taglineShine 4.5s ease-in-out infinite;
+  }
+  @keyframes taglineShine{
+    0%{left:-60%;}
+    35%{left:130%;}
+    100%{left:130%;}
+  }
+  header p.subtitle{color:var(--muted); font-size:13.5px; margin:2px 0 0; max-width:520px;}
+  header p.subtitle .lock{color:#8fbf7f;}
+  main{max-width:1040px; margin:0 auto; padding:30px 32px 80px;}
+  .panel{
+    background:linear-gradient(180deg, #17181c 0%, var(--panel) 100%);
+    border:1px solid var(--panel-border); border-radius:14px; padding:24px; margin-bottom:22px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
+    transition:border-color .2s ease, box-shadow .2s ease;
+  }
+  .panel:hover{border-color:#33363c; box-shadow:0 14px 38px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);}
+  .panel h2{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:var(--accent-soft);
+    margin:0 0 18px; display:flex; align-items:center; gap:10px;
+  }
+  .panel h2::after{content:''; flex:1; height:1px; background:linear-gradient(90deg, rgba(201,138,58,0.35), transparent);}
+  .row{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;}
+  .field{flex:1; min-width:220px;}
+  label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
+  select, input[type=file]{
+    width:100%; background:#1a1b1e; border:1px solid var(--panel-border); color:var(--text);
+    padding:9px 10px; border-radius:8px; font-size:13px; font-family:var(--sans);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  select:hover, input[type=file]:hover{border-color:#3a3d43;}
+  select:focus, input[type=file]:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(201,138,58,0.15);}
+  input[type=file]{padding:8px;}
+  input[type=file]::file-selector-button{
+    background:#26272c; color:var(--text); border:1px solid #34363c; border-radius:6px;
+    padding:6px 12px; margin-right:10px; font-size:12px; font-family:var(--sans); cursor:pointer;
+    transition:background .15s ease;
+  }
+  input[type=file]::file-selector-button:hover{background:#303237;}
+  .filename{color:var(--accent); font-size:12px; margin-top:6px; display:none;}
+
+
+  /* ---- floating borehole navigator ---- */
+  #bhNav{
+    position:fixed; right:18px; bottom:18px; z-index:60;
+    display:none; flex-direction:column; align-items:flex-end; gap:8px;
+    max-height:calc(100vh - 120px);
+  }
+  #bhNav.on{display:flex;}
+  #bhNavToggle{
+    background:linear-gradient(135deg,#d99a45,#a86e24); color:#171000;
+    border:none; border-radius:22px; padding:10px 16px; font-weight:800; font-size:12.5px;
+    cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.45), 0 3px 10px rgba(201,138,58,0.3);
+    letter-spacing:0.03em;
+  }
+  #bhNavPanel{
+    display:none; background:#141518f2; border:1px solid #34363c; border-radius:12px;
+    padding:10px; overflow-y:auto; max-height:calc(100vh - 190px); width:190px;
+    box-shadow:0 12px 34px rgba(0,0,0,0.5); backdrop-filter:blur(4px);
+  }
+  #bhNav.open #bhNavPanel{display:block;}
+  #bhNavPanel .nav-report{
+    font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-soft);
+    margin:8px 2px 5px; border-bottom:1px solid #2a2c31; padding-bottom:3px;
+  }
+  #bhNavPanel .nav-report:first-child{margin-top:0;}
+  #bhNavPanel .nav-bh{
+    display:block; width:100%; text-align:left; background:transparent; border:none;
+    color:var(--text); font-size:12px; padding:4px 8px; border-radius:6px; cursor:pointer;
+    font-weight:500; box-shadow:none;
+  }
+  #bhNavPanel .nav-bh:hover{background:rgba(201,138,58,0.14); color:var(--accent-soft); transform:none;}
+
+  /* ---- large drag & drop zone with a periodic travelling golden border ---- */
+  @property --dz-angle{ syntax:'<angle>'; initial-value:0deg; inherits:false; }
+  .dropzone{
+    position:relative; margin-top:4px;
+    min-height:150px; border-radius:14px; cursor:pointer;
+    border:2px dashed #3a3d43;
+    background:
+      radial-gradient(400px 120px at 50% 0%, rgba(201,138,58,0.06), transparent 70%),
+      #17181c;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; padding:26px 18px; text-align:center; user-select:none;
+    transition:border-color .2s ease, background .2s ease, transform .15s ease;
+  }
+  .dropzone:hover{border-color:#5a5346; background:#1a1b20;}
+  .dropzone:focus-visible{outline:none; border-color:var(--accent);}
+  .dropzone.dragover{
+    border-color:var(--accent); border-style:solid;
+    background:rgba(201,138,58,0.08); transform:scale(1.01);
+  }
+  .dropzone .dz-icon{font-size:30px; line-height:1; filter:drop-shadow(0 3px 8px rgba(201,138,58,0.35));}
+  .dropzone .dz-title{font-size:15px; font-weight:700; color:var(--text); letter-spacing:0.2px;}
+  .dropzone .dz-sub{font-size:12px; color:var(--muted);}
+  .dropzone.dragover .dz-title{color:var(--accent-soft);}
+  /* the travelling golden line: a conic-gradient ring that sweeps once around, then fades,
+     repeating every few seconds. Browsers without @property simply skip it gracefully. */
+  .dropzone::before{
+    content:''; position:absolute; inset:-2px; border-radius:16px; padding:2px;
+    background:conic-gradient(from var(--dz-angle),
+      transparent 0deg, transparent 288deg,
+      rgba(232,184,119,0.25) 315deg, #e8b877 336deg, #f6dcae 348deg, #e8b877 356deg, transparent 360deg);
+    -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
+    opacity:0; pointer-events:none;
+    animation:dzSweep 7s linear infinite;
+  }
+  @keyframes dzSweep{
+    0%   {--dz-angle:0deg;   opacity:0;}
+    4%   {opacity:1;}
+    38%  {--dz-angle:360deg; opacity:1;}
+    50%  {--dz-angle:360deg; opacity:0;}
+    100% {--dz-angle:360deg; opacity:0;}
+  }
+  .dropzone.dragover::before{animation:none; opacity:0;}
+  .dropzone--small{min-height:96px; padding:16px 14px;}
+  .dz-browse-btn{
+    position:relative; z-index:1;
+    background:linear-gradient(180deg, #d99a45 0%, #b87c2e 100%);
+    color:#171000; border:none; border-radius:7px; padding:8px 18px;
+    font-size:12.5px; font-weight:700; cursor:pointer; font-family:var(--sans);
+    box-shadow:0 3px 10px rgba(201,138,58,0.28), inset 0 1px 0 rgba(255,255,255,0.25);
+    margin:2px 0;
+  }
+  .dz-browse-btn:hover{filter:brightness(1.06); transform:translateY(-1px);}
+  .dropzone--small .dz-browse-btn{padding:6px 14px; font-size:12px;}
+  .dropzone--small .dz-icon{font-size:22px;}
+  .dropzone--small .dz-title{font-size:13px;}
+  #logConfirmTable{margin-top:6px;}
+  .project-row{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:9px 12px; border-radius:8px; background:#17181c; border:1px solid var(--panel-border);
+    margin-bottom:6px;
+  }
+  .project-row.active{border-color:var(--accent); background:rgba(201,138,58,0.08);}
+  .project-row .pr-name{font-weight:700; font-size:13px;}
+  .project-row .pr-meta{font-size:11px; color:var(--muted); margin-top:1px;}
+  .project-row .pr-actions{display:flex; gap:6px; flex-shrink:0;}
+  .project-row .pr-actions button{padding:5px 12px; font-size:11.5px;}
+  #logConfirmTable td{padding:5px 8px; border-bottom:1px solid var(--panel-border); color:var(--text);}
+  #logConfirmTable th{padding:5px 8px; text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;}
+  #logConfirmTable select{
+    background:#1a1b1e; border:1px solid var(--panel-border); color:var(--text);
+    padding:4px 6px; border-radius:6px; font-size:12px;
+  }
+  #logConfirmTable .depth-preview{color:var(--accent-soft); font-family:var(--mono); font-size:11.5px;}
+
+  .file-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .file-chip{
+    display:inline-flex; align-items:center; gap:8px;
+    background:#1a1b1e; border:1px solid var(--panel-border); border-radius:20px;
+    padding:6px 8px 6px 14px; font-size:12px; color:var(--text);
+  }
+  .file-chip .chip-status{font-size:13px; line-height:1;}
+  .file-chip.loading .chip-status{animation:chipPulse 1s ease-in-out infinite;}
+  .file-chip.error{border-color:#7a3a34; color:#e2938a;}
+  .file-chip .chip-remove{
+    cursor:pointer; width:18px; height:18px; border-radius:50%; border:none;
+    background:#2a2c31; color:var(--muted); font-size:12px; line-height:18px;
+    text-align:center; padding:0;
+  }
+  .file-chip .chip-remove:hover{background:#3a3d43; color:var(--text);}
+  @keyframes chipPulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+  .hint-note{color:var(--muted); font-size:12px; margin-top:8px; line-height:1.5;}
+  button{
+    background:linear-gradient(180deg, #d99a45 0%, #b87c2e 100%);
+    color:#171000; border:none; border-radius:8px; padding:11px 22px;
+    font-size:13px; font-weight:700; cursor:pointer; font-family:var(--sans);
+    box-shadow:0 3px 10px rgba(201,138,58,0.28), inset 0 1px 0 rgba(255,255,255,0.25);
+    transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;
+  }
+  button:hover:not(:disabled){transform:translateY(-1px); box-shadow:0 6px 16px rgba(201,138,58,0.38), inset 0 1px 0 rgba(255,255,255,0.25); filter:brightness(1.05);}
+  button:active:not(:disabled){transform:translateY(0);}
+  button:disabled{opacity:0.4; cursor:not-allowed;}
+  button.ghost{background:transparent; color:var(--text); border:1px solid var(--panel-border); font-weight:500; box-shadow:none;}
+  button.ghost:hover:not(:disabled){border-color:var(--accent); color:var(--accent-soft); transform:none; box-shadow:none; filter:none;}
+  .actions{display:flex; gap:10px; align-items:center; margin-top:18px; flex-wrap:wrap;}
+  #status{font-size:12px; color:var(--muted);}
+  #status.err{color:#e2685a;}
+  details{margin-top:14px;}
+  summary{cursor:pointer; font-size:12px; color:var(--muted);}
+  #debug{white-space:pre-wrap; font-family:var(--mono); font-size:11px; color:var(--muted); max-height:320px; overflow:auto; margin-top:10px; background:#0e0f11; border:1px solid var(--panel-border); border-radius:8px; padding:12px;}
+  footer{
+    border-top:1px solid var(--panel-border); padding:22px 32px; color:var(--muted); font-size:12px;
+    display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap;
+    background:linear-gradient(0deg, rgba(201,138,58,0.04) 0%, transparent 100%);
+  }
+  footer .ver{
+    display:inline-block; border:1px solid #34363c; border-radius:12px; padding:2px 10px;
+    font-family:var(--mono); font-size:11px; color:var(--accent-soft); background:#17181c;
+    letter-spacing:0.04em;
+  }
+
+  /* ---- rendered report (light card, matches the firm's tally-table style) ---- */
+  #reportWrap{display:flex; flex-direction:column; gap:28px;}
+  .report{
+    background:linear-gradient(180deg, #ffffff 0%, #f6f7f9 100%);
+    color:#1a1a1a;
+    border-radius:12px;
+    border:1px solid #dcdee3;
+    padding:26px 28px 30px;
+    font-family:var(--sans);
+    box-shadow:0 4px 20px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    transition:box-shadow .2s ease;
+  }
+  .report:hover{box-shadow:0 8px 32px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);}
+  .report .report-head{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    padding-bottom:14px; margin-bottom:16px;
+    border-bottom:2px solid #e0e3e8;
+  }
+  .report h2{
+    font-family:Georgia,"Times New Roman",serif; font-size:20px; color:#12253f;
+    margin:0 0 6px; font-weight:700;
+  }
+  .report .meta{font-size:13px; margin:2px 0; color:#3a3a3a;}
+  .report .meta b{color:#12253f;}
+  .report-actions{display:flex; gap:8px; flex-shrink:0;}
+  table.tally{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    margin-top:4px;
+    font-size:13px;
+    background:#fff;
+    border:1px solid #d5d7dc;
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  }
+  table.tally th{
+    background:linear-gradient(180deg, #eef1f5 0%, #dee2e9 100%);
+    text-transform:uppercase; font-size:11px; letter-spacing:0.05em;
+    padding:11px 10px;
+    border-bottom:2px solid #b9bec6; border-right:1px solid #d0d3d9;
+    text-align:center; color:#243146; font-weight:700;
+  }
+  table.tally th:last-child{border-right:none;}
+  table.tally td{
+    border-bottom:1px solid #eaecf0;
+    border-right:1px solid #eaecf0;
+    padding:9px 12px; vertical-align:middle;
+    transition:background .14s ease, box-shadow .14s ease;
+  }
+  table.tally td:last-child{border-right:none;}
+  table.tally tr:last-child td{border-bottom:none;}
+  tr.bh-row td{
+    background:linear-gradient(90deg, #e1e7f0 0%, #eef2f7 60%, #e1e7f0 100%);
+    font-weight:700; text-align:center; color:#1a2b45;
+    padding:11px 12px; font-size:13.5px;
+    letter-spacing:0.2px;
+  }
+  tr.bh-row.dup td{
+    background:linear-gradient(90deg, #efe4d6 0%, #f7efe3 60%, #efe4d6 100%);
+    color:#5c3d15;
+  }
+  .bh-row .bh-name{display:inline-block; vertical-align:middle;}
+  .bh-row .bh-date{color:#556; font-weight:600; margin-left:6px;}
+  .bh-row .bh-depth{color:#556; font-weight:600; margin-left:6px; font-size:12.5px;}
+  .bh-row .bh-rounds-count{
+    display:inline-block; margin-left:8px; font-size:10.5px; font-weight:700;
+    background:#12253f; color:#fff; border-radius:10px; padding:2px 8px;
+    letter-spacing:0.03em; text-transform:uppercase; vertical-align:middle;
+  }
+  tr.round-subhead td{
+    background:#eef1f6; padding:6px 12px; border-bottom:1px solid #dde1e8;
+    font-size:12px; color:#33475b;
+  }
+  tr.round-subhead .round-date{font-weight:700; letter-spacing:0.02em;}
+  tr.round-subhead .round-job{color:#7a8798; font-style:italic; margin-left:4px;}
+  tr.cat-head td{background:#f4f6fa; padding:7px 12px 6px;}
+  tr.cat-head td:first-child{padding-left:14px;}
+  td.sid{
+    font-weight:700; white-space:nowrap; background:#f8f9fb;
+    padding-left:14px;
+  }
+  td.sid.ok{color:#1f8137; box-shadow:inset 4px 0 0 #2ea043;}
+  td.sid.exceed{color:#c0392b; background:#fdf6f5; box-shadow:inset 4px 0 0 #c0392b;}
+  td.sid .depth{display:block; font-weight:600; font-size:12.5px; color:#4a5461; margin-top:2px;}
+  td.center{text-align:center;}
+  td.italic{font-style:italic; text-align:center; color:#4a5261;}
+  .exc{color:#c0392b; font-weight:700;}
+  .warn{color:#a06a00; font-size:12px; margin-top:10px; background:#fff7e0; border:1px solid #ecdca6; border-radius:6px; padding:8px 12px;}
+
+
+  /* ---- standards-table selection pills ---- */
+  .pill-group-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-top:14px; flex-wrap:wrap;}
+  .pill-group-head label{margin:0;}
+  .pill-select-actions{display:flex; align-items:center; gap:6px; font-size:11px;}
+  .pill-select-actions .sep{color:#3a3d43;}
+  .pill-select-actions button{
+    background:none; border:none; box-shadow:none; padding:0; margin:0;
+    color:var(--muted); font-size:11px; font-weight:600; cursor:pointer; text-decoration:none;
+  }
+  .pill-select-actions button:hover{color:var(--accent-soft); transform:none;}
+  .table-checks{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+  .table-check{
+    display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+    background:#1a1b1e; border:1px solid var(--panel-border); border-radius:20px;
+    padding:6px 14px; font-size:12.5px; color:var(--text); user-select:none;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .table-check:hover{border-color:#3a3d43;}
+  .table-check input{accent-color:var(--accent); margin:0; cursor:pointer;}
+  .table-check.checked{border-color:var(--accent); background:rgba(201,138,58,0.10);}
+
+  .report-divider{
+    display:flex; align-items:center; gap:16px;
+    margin:2px 0; padding:0 4px;
+  }
+  .report-divider .rd-line{flex:1; height:2px; border-radius:1px; opacity:0.55;}
+  .report-divider .rd-chip{
+    flex-shrink:0; font-size:11.5px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase;
+    color:#fff; padding:7px 18px; border-radius:20px;
+    box-shadow:0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  #reportWrap .empty-note{
+    text-align:center; color:var(--muted); font-size:13px; padding:30px 16px;
+    border:1px dashed var(--panel-border); border-radius:12px;
+  }
+  /* ---- report tinting themes (user-selectable per standards table) ---- */
+  .report-tablebadge{
+    display:inline-block; margin-left:10px; vertical-align:middle;
+    font-size:10.5px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase;
+    color:#fff; background:#5c6673; border-radius:10px; padding:3px 10px;
+  }
+  /* pink */
+  .report--theme-pink{background:linear-gradient(180deg,#fffafc 0%,#fbeef3 100%); border-color:#e8cdd8;}
+  .report--theme-pink table.tally th{background:linear-gradient(180deg,#f7e3eb 0%,#eed1dc 100%); border-bottom-color:#d6abbc; color:#5c2438;}
+  .report--theme-pink tr.bh-row td{background:linear-gradient(90deg,#f2dbe4 0%,#f9ecf1 60%,#f2dbe4 100%); color:#5c2438;}
+  .report--theme-pink tr.round-subhead td{background:#f8ebf0; color:#6b3348;}
+  .report--theme-pink .report-tablebadge{background:#c25b7f;}
+  /* blue */
+  .report--theme-blue{background:linear-gradient(180deg,#fafcff 0%,#edf3fa 100%); border-color:#cddce9;}
+  .report--theme-blue table.tally th{background:linear-gradient(180deg,#e2ecf6 0%,#d1e0ef 100%); border-bottom-color:#abc4dc; color:#1f3a55;}
+  .report--theme-blue tr.bh-row td{background:linear-gradient(90deg,#dbe7f2 0%,#ecf3f9 60%,#dbe7f2 100%); color:#1f3a55;}
+  .report--theme-blue tr.round-subhead td{background:#ebf2f9; color:#2d4a68;}
+  .report--theme-blue .report-tablebadge{background:#4a7fb5;}
+  /* green */
+  .report--theme-green{background:linear-gradient(180deg,#fafdfb 0%,#edf6ef 100%); border-color:#cfe2d4;}
+  .report--theme-green table.tally th{background:linear-gradient(180deg,#e2f0e6 0%,#d2e5d8 100%); border-bottom-color:#adcbb6; color:#1f4a2c;}
+  .report--theme-green tr.bh-row td{background:linear-gradient(90deg,#dcebe1 0%,#edf5ef 60%,#dcebe1 100%); color:#1f4a2c;}
+  .report--theme-green tr.round-subhead td{background:#ecf4ee; color:#2e553b;}
+  .report--theme-green .report-tablebadge{background:#4d9163;}
+  /* amber */
+  .report--theme-amber{background:linear-gradient(180deg,#fffdf8 0%,#faf3e6 100%); border-color:#e6d8bd;}
+  .report--theme-amber table.tally th{background:linear-gradient(180deg,#f4e9d3 0%,#ecdcbe 100%); border-bottom-color:#d3bf98; color:#54401a;}
+  .report--theme-amber tr.bh-row td{background:linear-gradient(90deg,#f0e3ca 0%,#f7efdf 60%,#f0e3ca 100%); color:#54401a;}
+  .report--theme-amber tr.round-subhead td{background:#f6efe0; color:#63501f;}
+  .report--theme-amber .report-tablebadge{background:#b3893a;}
+  /* purple */
+  .report--theme-purple{background:linear-gradient(180deg,#fdfbff 0%,#f2edf9 100%); border-color:#d9cee9;}
+  .report--theme-purple table.tally th{background:linear-gradient(180deg,#ece2f5 0%,#ded0ee 100%); border-bottom-color:#bda8d8; color:#3d2559;}
+  .report--theme-purple tr.bh-row td{background:linear-gradient(90deg,#e6dbf1 0%,#f1eaf8 60%,#e6dbf1 100%); color:#3d2559;}
+  .report--theme-purple tr.round-subhead td{background:#f1ebf8; color:#4d3369;}
+  .report--theme-purple .report-tablebadge{background:#7e5aab;}
+  /* teal */
+  .report--theme-teal{background:linear-gradient(180deg,#fafdfd 0%,#eaf5f5 100%); border-color:#c8e0e0;}
+  .report--theme-teal table.tally th{background:linear-gradient(180deg,#ddeeee 0%,#cbe3e3 100%); border-bottom-color:#a2c9c9; color:#174a4a;}
+  .report--theme-teal tr.bh-row td{background:linear-gradient(90deg,#d6e9e9 0%,#e9f3f3 60%,#d6e9e9 100%); color:#174a4a;}
+  .report--theme-teal tr.round-subhead td{background:#e9f2f2; color:#265656;}
+  .report--theme-teal .report-tablebadge{background:#3d8b8b;}
+  /* neutral = default white card, no overrides needed */
+
+  /* ---- colour swatch picker inside each table pill ---- */
+  .table-check .swatches{display:inline-flex; gap:5px; margin-left:8px; padding-left:10px; border-left:1px solid #34363c;}
+  .swatch{
+    width:16px; height:16px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.25); transition:transform .1s ease;
+  }
+  .swatch:hover{transform:scale(1.2);}
+  .swatch.sel{border-color:#fff; box-shadow:0 0 0 2px var(--accent);}
+  .swatch-pink{background:#e79ab5;} .swatch-blue{background:#8ab2d9;} .swatch-green{background:#8cc4a0;}
+  .swatch-amber{background:#dcb46a;} .swatch-purple{background:#b193d8;} .swatch-teal{background:#7dbcbc;}
+  .swatch-neutral{background:linear-gradient(135deg,#fff 50%,#d5d7dc 50%);}
+  /* click-to-copy affordance on cells */
+  table.tally td[data-copyable]{cursor:copy; position:relative;}
+  table.tally td[data-copyable]:hover{background:#eef4ff; box-shadow:inset 0 0 0 2px rgba(50,110,220,0.20);}
+  table.tally td.sid[data-copyable]:hover{background:#e8f0ff;}
+  tr.bh-row td[data-copyable]:hover{background:linear-gradient(90deg, #cfd9e8 0%, #dde6f0 60%, #cfd9e8 100%);}
+  tr.bh-row.dup td[data-copyable]:hover{background:linear-gradient(90deg, #e2d0b3 0%, #ecdec3 60%, #e2d0b3 100%);}
+  table.tally td.copied{
+    background:#d4edda !important;
+    box-shadow:inset 0 0 0 2px #28a745 !important;
+    animation:copyFlash .55s ease-out;
+  }
+  @keyframes copyFlash{
+    0%{background:#a8e6b6; box-shadow:inset 0 0 0 3px #28a745;}
+    100%{background:#d4edda; box-shadow:inset 0 0 0 2px #28a745;}
+  }
+  .copy-btn{
+    display:inline-flex; align-items:center; gap:5px;
+    cursor:pointer; padding:5px 11px; border:1px solid #b0b6c1;
+    border-radius:6px; background:#fff; color:#243146;
+    font-size:11px; font-weight:700; font-family:var(--sans);
+    letter-spacing:0.03em; text-transform:uppercase;
+    transition:all .15s ease;
+    vertical-align:middle;
+  }
+  .copy-btn:hover{
+    background:#12253f; color:#fff; border-color:#12253f;
+    transform:translateY(-1px);
+    box-shadow:0 2px 6px rgba(18,37,63,0.25);
+  }
+  .copy-btn.copied{
+    background:#28a745; color:#fff; border-color:#28a745;
+    transform:translateY(0);
+    box-shadow:0 2px 6px rgba(40,167,69,0.35);
+  }
+  #saveProjectBtn{
+    padding:10px 20px; font-size:12.5px; font-weight:700; text-transform:none; letter-spacing:normal;
+    background:linear-gradient(180deg, #d99a45 0%, #b87c2e 100%); color:#171000; border:none;
+    box-shadow:0 3px 10px rgba(201,138,58,0.28), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  #saveProjectBtn:hover{background:linear-gradient(180deg, #d99a45 0%, #b87c2e 100%); color:#171000; border-color:transparent; filter:brightness(1.06);}
+  #saveProjectBtn.copied{background:#28a745; color:#fff;}
+  .copy-hint{
+    font-size:11px; color:var(--muted); margin:8px 0 -4px; font-style:italic;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="backlink" href="https://github.com/mshrmahdi-shr/Tally-Lab-export-result">← GitHub Repository</a>
+  <div class="brand">
+    <div class="brand-mark">MS</div>
+    <h1>COA Tally Processor</h1>
+    <div class="tagline">Contaminant Table Checker</div>
+    <p class="subtitle">Build borehole-centred, exceedance-flagged tally tables. <span class="lock">🔒</span> Files stay in this browser.</p>
+  </div>
+</header>
+
+<main>
+
+  <div id="projectBar" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; padding:12px 18px; background:var(--panel); border:1px solid var(--panel-border); border-radius:12px;">
+    <span style="font-size:12.5px; color:var(--muted);">📁 Project:</span>
+    <strong id="currentProjectName" style="color:var(--accent-soft); font-size:13px;">Untitled</strong>
+    <button type="button" id="renameProjectBtn" class="ghost" style="padding:2px 9px; font-size:11px;" title="Rename this project">✏️</button>
+    <span style="flex:1;"></span>
+    <button type="button" class="ghost" id="exportProjectBtn" title="Download this project — files, borehole renames, and choices — as one file you can send to a colleague">⬇ Export .coaproject</button>
+    <button type="button" class="ghost" id="importProjectBtn" title="Open a .coaproject file someone sent you">⬆ Import .coaproject</button>
+    <input type="file" id="importProjectInput" accept=".coaproject.json,.json" hidden="">
+    <button type="button" class="copy-btn" id="saveProjectBtn">💾 Save Project</button>
+    <div style="position:relative;">
+      <button type="button" class="ghost" id="openProjectBtn">📂 Open Project ▾</button>
+      <div id="projectDropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:50; width:320px; background:#141518f2; border:1px solid #34363c; border-radius:12px; padding:10px; box-shadow:0 12px 34px rgba(0,0,0,0.5); backdrop-filter:blur(4px);">
+        <button type="button" id="newProjectBtn" class="ghost" style="width:100%; margin-bottom:8px; text-align:left;">+ New project</button>
+        <div id="projectList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>📥 &nbsp;Step 1 — Inputs</h2>
+    <div class="row">
+      <div class="field">
+        <label>Certificates of Analysis (PDF, Excel, CSV or TXT — add one or several sampling rounds/years)</label>
+        <div class="dropzone" id="dropZone" tabindex="0" role="button" aria-label="Add certificate files">
+          <div class="dz-icon">📄</div>
+          <div class="dz-title">Drag &amp; drop lab reports here</div>
+          <button type="button" class="dz-browse-btn" id="dropZoneBrowseBtn">📂 Browse files…</button>
+          <div class="dz-sub">PDF, Excel, CSV, TXT · several rounds/years at once</div>
+          <input type="file" id="pdfInput" accept="application/pdf,.txt,text/plain,.xls,.xlsx,.csv" multiple="" hidden="">
+        </div>
+        <div class="file-chips" id="fileChips"></div>
+        <div id="tableSelectWrap" style="display:none;">
+          <div class="pill-group-head">
+            <label>Standards tables to include in the results</label>
+            <span class="pill-select-actions">
+              <button type="button" data-select-all="tables">Select all</button><span class="sep">·</span><button type="button" data-select-none="tables">Deselect all</button>
+            </span>
+          </div>
+          <div class="table-checks" id="tableChecks"></div>
+        </div>
+        <div id="catSelectWrap" style="display:none;">
+          <div class="pill-group-head">
+            <label>Analyses to include in the results</label>
+            <span class="pill-select-actions">
+              <button type="button" data-select-all="cats">Select all</button><span class="sep">·</span><button type="button" data-select-none="cats">Deselect all</button>
+            </span>
+          </div>
+          <div class="table-checks" id="catChecks"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Sampling Date / Screen Interval reference (optional .xlsx, shared across all rounds)</label>
+        <div class="dropzone dropzone--small" id="refDropZone" tabindex="0" role="button" aria-label="Add sampling date reference file">
+          <div class="dz-icon">🗓️</div>
+          <div class="dz-title">Drag &amp; drop the reference file</div>
+          <button type="button" class="dz-browse-btn" id="refDropZoneBrowseBtn">📂 Browse…</button>
+          <div class="dz-sub">.xlsx / .xls</div>
+          <input type="file" id="xlsxInput" accept=".xlsx,.xls" hidden="">
+        </div>
+        <div class="filename" id="xlsxName"></div>
+        <details style="margin-top:10px;">
+          <summary style="font-size:12px; color:var(--muted); cursor:pointer;">…or paste dates / screen intervals as text</summary>
+          <textarea id="pasteRef" rows="5" placeholder="Copy the cells straight out of Excel and paste here — sample IDs with their screen intervals / sampling dates in any layout, e.g.:
+07-4525-1	07-4525-2
+MW 1	MW 6
+3.81 - 6.86 m	3.05 - 6.10 m
+Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e; border:1px solid var(--panel-border); color:var(--text); border-radius:8px; padding:9px 10px; font-size:12.5px; font-family:var(--mono); resize:vertical;"></textarea>
+          <div class="filename" id="pasteRefStatus" style="display:block;"></div>
+        </details>
+      </div>
+      <div class="field">
+        <label>Borehole logs for GW screen depth (optional .pdf/.txt) — computes screen interval from "End of Borehole at X.XXm"</label>
+        <div class="dropzone dropzone--small" id="logDropZone" tabindex="0" role="button" aria-label="Add borehole log files">
+          <div class="dz-icon">📜</div>
+          <div class="dz-title">Drag &amp; drop borehole log file(s)</div>
+          <button type="button" class="dz-browse-btn" id="logDropZoneBrowseBtn">📂 Browse…</button>
+          <div class="dz-sub">.pdf / .txt, one or many wells</div>
+          <input type="file" id="logInput" accept="application/pdf,.txt,text/plain" multiple="" hidden="">
+        </div>
+        <div class="file-chips" id="logChips"></div>
+        <div class="filename" id="logStatus" style="display:block;"></div>
+        <div id="logConfirmWrap" style="display:none;">
+          <p class="hint-note" style="margin:8px 0 4px;">Confirm the screen length used for each well below — the depth is only applied once you pick one (never guessed).</p>
+          <table id="logConfirmTable" style="width:100%; font-size:12px; border-collapse:collapse;"></table>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:16px;">
+      <div class="field">
+        <label>Sample matrix</label>
+        <select id="matrixSelect">
+          <option value="auto" selected="">Auto-detect from PDF</option>
+          <option value="SOIL">Force: Soil</option>
+          <option value="GW">Force: Groundwater</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Soil standard to apply where two values exist</label>
+        <select id="textureSelect">
+          <option value="standard">Coarse-textured soil (no bracket — default, stricter)</option>
+          <option value="bracket">Medium / fine-textured soil (bracket value)</option>
+        </select>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="runBtn" disabled="">Process certificate(s)</button>
+      <button class="ghost" id="copyBtn" style="display:none;">Copy tables as text</button>
+      <span id="status"></span>
+    </div>
+    <p class="hint-note">Add several PDF or TXT lab reports (different sampling rounds/years) and they'll be combined: boreholes sampled more than once at the same depth are grouped under one heading, with each round shown as its own dated line. Excel/CSV lab certificates are supported too: the workbook's first sheet is used (hover a file's chip to see which), merged standard cells are handled, and hidden helper columns are ignored.</p>
+    <details>
+      <summary>Debug: raw parsed rows</summary>
+      <div id="debug">Nothing parsed yet.</div>
+    </details>
+  </div>
+
+  <div class="panel">
+    <h2>📊 &nbsp;Step 2 — Output</h2>
+    <div id="reportWrap">
+      <p style="color:var(--muted); font-size:13px;">Upload one or more Certificate of Analysis files (PDF or TXT) to begin. If sampling dates in a file only give a date range (not one date per sample), also upload the Sampling Date / Screen Interval reference file — otherwise dates are left blank rather than guessed.</p>
+    </div>
+  </div>
+
+</main>
+
+<div id="bhNav">
+  <div id="bhNavPanel"></div>
+  <button id="bhNavToggle" type="button">📍 Boreholes</button>
+</div>
+
+<footer>
+  <span>Written by M.Sharif</span>
+  <span class="ver">v25.3</span>
+  <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
+</footer>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const CANON_ORDER = ["Metals","VOCs","BTEX","PHC(F1-F4)","PAH","PCBs","EC","SAR","pH","Chlorophenols","OC Pesticides"];
+const DISPLAY_NAME = {Metals:"Metals", VOCs:"VOCs", BTEX:"BTEX", "PHC(F1-F4)":"PHCs (F1-F4)", PAH:"PAH", PCBs:"PCB", EC:"EC", SAR:"SAR", pH:"pH", Chlorophenols:"Chlorophenols", "OC Pesticides":"OC Pesticides"};
+const SECTION_MAP = [
+  {re:/^Metals\b/i, key:"Metals"},
+  {re:/^VOCs?\b/i, key:"VOCs"},
+  {re:/^BTEX\b/i, key:"BTEX"},
+  {re:/^PHCs?\b/i, key:"PHC(F1-F4)"},
+  {re:/^PAHs?\b/i, key:"PAH"},
+  {re:/^PCBs?\b/i, key:"PCBs"},
+  {re:/^EC\b/i, key:"EC"},
+  {re:/^SAR\b/i, key:"SAR"},
+];
+// Categories whose header + single data row are combined on one PDF line (e.g. "PCBs in Soil <0.02 ... " / "EC (mS/cm) 0.16 ...")
+const COMBINED_ROW_STRIP = {
+  PCBs: /^PCBs?\s*(in\s*(Soil|Water))?\s*/i,
+  EC: /^EC\s*\([^)]*\)\s*/i,
+  SAR: /^SAR\s*\([^)]*\)\s*/i,
+};
+const TABLE_LABEL_RE = /Table\s+\d+(\.\d+)?/gi;
+const SAMPLE_ID_RE = /^\d{2}-\d{3,5}-\d+$/;
+// Depth may be a range ("0.5-1.0m") or a single value ("1.20m")
+const DEPTH_RE = /^\d+(\.\d+)?(-\d+(\.\d+)?)?\s*m$/i;
+const BH_PREFIX_RE = /^(BH\s?\d+[A-Za-z]?|TP\s?\d+[A-Za-z]?|MW\s?\d+|EMW\s?\d+|SS\s?\d+|Grab\s*Sample\s*#?\s*\d+|GS[-\s]?\d+|SP\s?\d+)/i;
+// Same vocabulary as BH_PREFIX_RE but NOT anchored to the start of the string — for finding
+// a well name inside a labelled line like "Borehole No: BH1" rather than at position 0.
+const BH_PREFIX_ANYWHERE_RE = /\b(BH\s?\d+[A-Za-z]?|TP\s?\d+[A-Za-z]?|MW\s?\d+|EMW\s?\d+|SS\s?\d+|GS[-\s]?\d+|SP\s?\d+)\b/i;
+// Header-noise tokens that PDF extraction merges into ID / borehole rows on compact pages:
+// "Soil Standards", "Ground Water Standards", "Parameter", "R/P/I", footnote superscripts (1, 2, 12), "*"
+const NOISE_TOKEN_RE = /^(Soil|Ground|Water|Standards?|Parameter|R\/P\/I|\*|\d{1,2})$/i;
+
+// A row is an ID row if, after dropping noise tokens, every remaining token is a sample ID.
+function extractIdRow(tokens){
+  const meaningful = tokens.filter(t=>!NOISE_TOKEN_RE.test(t));
+  if(!meaningful.length) return null;
+  return meaningful.every(t=>SAMPLE_ID_RE.test(t)) ? meaningful : null;
+}
+
+// Strip header noise that can precede / follow borehole names on a merged row.
+function cleanBhRow(row){
+  return row
+    .replace(TABLE_LABEL_RE, ' ')
+    .replace(/\b(Soil|Ground\s*Water)\s*Standards?\b/gi, ' ')
+    .replace(/\bStandards?\b/gi, ' ')
+    .replace(/^\s*Parameter\s+/i, '')
+    .replace(/\bR\/P\/I\b/gi, ' ')
+    .replace(/\s+/g,' ').trim();
+}
+
+// Strip trailing footnote superscripts ("1", "12", "*") glued onto the LAST borehole name of a
+// row (e.g. "MW 25-3 1"), but never strip a digit that belongs to the name itself
+// (e.g. "BH 204 SS 1", where the digit follows the SS keyword).
+function cleanBhPart(part, isLast){
+  let p = part.replace(/\s+/g,' ').trim();
+  if(!isLast) return p;
+  for(;;){
+    const m = p.match(/^(.*\S)\s+(\d{1,2}|\*)$/);
+    if(!m) break;
+    const shorter = m[1].trim();
+    if(!BH_PREFIX_RE.test(shorter)) break;
+    const lastWord = (shorter.match(/(\S+)$/)||[])[1] || '';
+    if(/^(BH|SS|MW|EMW|SP|GS)$/i.test(lastWord)) break; // digit is part of the name
+    p = shorter;
+  }
+  return p;
+}
+// Ordered list of possible leading-label patterns. For row splitting we only ever search using
+// whichever ONE of these matches at the very start of the row, so a suffix like "SS2" inside
+// "BH 201 SS2" never gets mistaken for its own delimiter.
+const ROW_PREFIX_PATTERNS = [
+  /BH\s?\d+[A-Za-z]?/i,
+  /TP\s?\d+[A-Za-z]?/i,
+  /EMW\s?\d+/i,
+  /MW\s?\d+/i,
+  /SS\s?\d+/i,
+  /Grab\s*Sample\s*#?\s*\d+/i,  // surface grab samples, e.g. "Grab Sample #1" / "GrabSample #1"
+  /GS[-\s]?\d+/i,               // and their short form, e.g. "GS-1" / "GS 2" / "GS3"
+  /SP\s?\d+/i,                  // sampling points / test pits, e.g. "SP1" / "SP 2"
+];
+function matchRowPrefixPattern(row){
+  for(const p of ROW_PREFIX_PATTERNS){
+    if(new RegExp('^'+p.source, p.flags.replace('g','')).test(row)) return p;
+  }
+  return null;
+}
+
+function detectTableLabels(allRows){
+  const seen = [];
+  allRows.forEach(row=>{
+    const re = new RegExp(TABLE_LABEL_RE.source, 'gi');
+    let m;
+    while((m = re.exec(row))){
+      const label = m[0].replace(/\s+/g,' ').trim();
+      if(!seen.includes(label)) seen.push(label);
+    }
+  });
+  return seen.length ? seen : ['Table 3','Table 8']; // fallback to old default if nothing detected
+}
+
+let state = { files: [], xlsxDates: null, currentProjectId: null };
+let _fileSeq = 0;
+
+document.getElementById('pdfInput').addEventListener('change', async (e)=>{
+  const picked = Array.from(e.target.files || []);
+  e.target.value = ''; // allow re-adding the same filename later
+  addCertificateFiles(picked);
+});
+
+// ---- big dropzone: click / keyboard / drag & drop all feed the same intake ----
+(function(){
+  const zone = document.getElementById('dropZone');
+  const input = document.getElementById('pdfInput');
+  zone.addEventListener('click', (e)=>{ if(e.target === input) return; input.click(); });
+  zone.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); input.click(); } });
+  ['dragenter','dragover'].forEach(ev=> zone.addEventListener(ev, (e)=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover');
+  }));
+  ['dragleave','dragend'].forEach(ev=> zone.addEventListener(ev, (e)=>{
+    e.preventDefault(); zone.classList.remove('dragover');
+  }));
+  zone.addEventListener('drop', (e)=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
+    addCertificateFiles(Array.from(e.dataTransfer.files || []));
+  });
+  // don't let a stray drop outside the zone make the browser navigate away from the app
+  if(typeof window.addEventListener === 'function'){
+    ['dragover','drop'].forEach(ev=> window.addEventListener(ev, (e)=>{ if(!zone.contains(e.target)) e.preventDefault(); }));
+  }
+})();
+
+const SUPPORTED_FILE_RE = /\.(pdf|txt|xls|xlsx|csv)$/i;
+
+async function addCertificateFiles(picked){
+  if(!picked.length) return;
+  for(const f of picked){
+    // the accept attribute doesn't apply to drag & drop, so vet dropped files here
+    if(!SUPPORTED_FILE_RE.test(f.name) && f.type !== 'application/pdf' && f.type !== 'text/plain'){
+      state.files.push({ id:'f'+(++_fileSeq), name:f.name, status:'error', error:'Unsupported file type — PDF, Excel, CSV or TXT only' });
+      renderFileChips();
+      continue;
+    }
+    const entry = { id: 'f'+(++_fileSeq), name: f.name, status: 'loading', kind: null, pages: null, sequential: null, error: null, blob: f };
+    state.files.push(entry);
+    renderFileChips();
+    try{
+      const isTxt = /\.txt$/i.test(f.name) || f.type === 'text/plain';
+      const isWorkbook = /\.(xlsx?|csv)$/i.test(f.name);
+      if(isTxt){
+        entry.kind = 'coa';
+        entry.pages = linesToPages(await f.text());
+      } else if(isWorkbook){
+        entry.kind = 'coa';
+        const isCsv = /\.csv$/i.test(f.name);
+        const wbResult = workbookCoaToPages(isCsv ? await f.text() : await f.arrayBuffer(), isCsv);
+        entry.pages = wbResult.pages;
+        entry.sheetNote = wbResult.otherSheets.length
+          ? `sheet “${wbResult.sheetName}” used (also present: ${wbResult.otherSheets.join(', ')})`
+          : `sheet “${wbResult.sheetName}”`;
+      } else {
+        const buf = await f.arrayBuffer();
+        const bucketed = await extractRows(buf);
+        const allText = bucketed.flat().map(r=>r.text).join(' ');
+        if(isSitePlanSignature(allText)){
+          entry.kind = 'siteplan';
+          entry.sequential = await extractSequential(buf);
+        } else if(isAgatSignature(allText)){
+          entry.kind = 'agat';
+          entry.pages = bucketed;
+        } else {
+          entry.kind = 'coa';
+          entry.pages = bucketed;
+        }
+      }
+      // detect which standards tables + analyte categories this file mentions, for the pills
+      if((entry.kind === 'coa' || entry.kind === 'agat') && entry.pages){
+        const rowsFlat = entry.pages.flat().map(r=>typeof r==='string'?r:r.text);
+        const txt = rowsFlat.join(' ');
+        entry.labels = [...new Set((txt.match(/Table\s+\d+(\.\d+)?/gi)||[]).map(t=>t.replace(/\s+/g,' ')))];
+        entry.cats = detectCatsInRows(rowsFlat);
+      } else if(entry.kind === 'siteplan' && entry.sequential){
+        const flat = entry.sequential.flat();
+        const txt = flat.join(' ');
+        entry.labels = [...new Set((txt.match(/Table\s+\d+(\.\d+)?/gi)||[]).map(t=>t.replace(/\s+/g,' ')))];
+        entry.cats = detectCatsInRows(flat);
+      }
+      entry.status = 'ready';
+    }catch(err){
+      entry.status = 'error';
+      entry.error = err.message;
+    }
+    renderFileChips();
+    renderTableChecks();
+    renderCatChecks();
+  }
+  const anyReady = state.files.some(f=>f.status==='ready');
+  document.getElementById('runBtn').disabled = !anyReady;
+  setStatus(anyReady ? state.files.filter(f=>f.status==='ready').length+' file(s) ready.' : 'No files loaded yet.');
+  saveProjectState();
+}
+
+function removeFile(id){
+  state.files = state.files.filter(f=>f.id !== id);
+  renderFileChips();
+  document.getElementById('runBtn').disabled = !state.files.some(f=>f.status==='ready');
+  saveProjectState();
+}
+
+function renderFileChips(){
+  const wrap = document.getElementById('fileChips');
+  wrap.innerHTML = state.files.map(f=>{
+    const icon = f.status==='loading' ? '⏳' : f.status==='error' ? '⚠️' : (f.kind==='siteplan' ? '🗺️' : f.kind==='agat' ? '🧪' : (f.sheetNote ? '📊' : '📄'));
+    const title = f.status==='error' ? esc(f.error||'Could not read file') : esc(f.name + (f.kind==='siteplan' ? ' (site plan)' : f.kind==='agat' ? ' (AGAT report)' : (f.sheetNote ? ' — '+f.sheetNote : '')));
+    return `<span class="file-chip ${f.status}" title="${title}">
+      <span class="chip-status">${icon}</span>${esc(f.name)}
+      <button type="button" class="chip-remove" data-remove-file="${f.id}">×</button>
+    </span>`;
+  }).join('');
+}
+
+document.getElementById('fileChips').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-remove-file]');
+  if(btn){ removeFile(btn.dataset.removeFile); renderTableChecks(); renderCatChecks(); }
+});
+
+// ---- standards-table selection ----
+// All detected tables start CHECKED; unticking one removes its report from the results.
+// Selection is applied at RENDER time only — parsing always reads every standards column,
+// because column-to-table mapping on the certificate depends on the full set being present.
+state.selectedTables = {}; // label -> boolean
+state.tableColors = {};    // label -> theme name chosen by the user
+
+const REPORT_THEMES = ['pink','blue','green','amber','purple','teal','neutral'];
+
+// Default tint per standards table; the user can override with the swatches.
+function defaultThemeFor(label){
+  const n = label.replace(/\D+/g,'');
+  if(n === '3') return 'pink';
+  if(n === '8') return 'blue';
+  if(n === '9') return 'green';
+  if(n === '2' || n === '21') return 'amber';
+  return 'neutral';
+}
+
+function themeFor(label){
+  return state.tableColors[label] || defaultThemeFor(label);
+}
+
+function detectedTableLabels(){
+  const seen = [];
+  state.files.filter(f=>f.status==='ready').forEach(f=>{
+    (f.labels||[]).forEach(l=>{ if(!seen.includes(l)) seen.push(l); });
+  });
+  return seen;
+}
+
+function renderTableChecks(){
+  const labels = detectedTableLabels();
+  const wrap = document.getElementById('tableSelectWrap');
+  const box = document.getElementById('tableChecks');
+  if(!labels.length){ wrap.style.display = 'none'; box.innerHTML = ''; return; }
+  wrap.style.display = 'block';
+  labels.forEach(l=>{ if(!(l in state.selectedTables)) state.selectedTables[l] = true; });
+  box.innerHTML = labels.map(l=>{
+    const on = state.selectedTables[l] !== false;
+    const cur = themeFor(l);
+    const swatches = REPORT_THEMES.map(t=>
+      `<button type="button" class="swatch swatch-${t}${t===cur?' sel':''}" data-table-label="${esc(l)}" data-theme="${t}" title="${t} background for ${esc(l)}"></button>`
+    ).join('');
+    return `<label class="table-check${on?' checked':''}"><input type="checkbox" data-table-label="${esc(l)}" ${on?'checked':''}> ${esc(l)}<span class="swatches">${swatches}</span></label>`;
+  }).join('');
+}
+
+document.getElementById('tableChecks').addEventListener('click', (e)=>{
+  const sw = e.target.closest('button.swatch');
+  if(!sw) return;
+  e.preventDefault(); // a click inside <label> must not toggle the checkbox
+  state.tableColors[sw.dataset.tableLabel] = sw.dataset.theme;
+  renderTableChecks();
+  if(state.rerender) state.rerender(); // recolour already-rendered reports immediately
+});
+
+document.getElementById('tableChecks').addEventListener('change', (e)=>{
+  const cb = e.target.closest('input[data-table-label]');
+  if(!cb) return;
+  state.selectedTables[cb.dataset.tableLabel] = cb.checked;
+  renderTableChecks();
+  if(state.rerender) state.rerender();
+});
+
+document.getElementById('tableSelectWrap').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-select-all],[data-select-none]');
+  if(!btn) return;
+  const on = btn.hasAttribute('data-select-all');
+  detectedTableLabels().forEach(l=>{ state.selectedTables[l] = on; });
+  renderTableChecks();
+  if(state.rerender) state.rerender();
+});
+
+// ---- analyte-category selection ----
+// The ORP pill represents the EC + SAR + pH package as one choice.
+const CAT_PILLS = ['Metals','VOCs','BTEX','PHC(F1-F4)','PAH','PCBs','ORP','Chlorophenols','OC Pesticides'];
+const ORP_KEYS = ['EC','SAR','pH'];
+state.selectedCats = {}; // pill -> boolean
+
+function detectCatsInRows(rowsFlat){
+  const found = new Set();
+  rowsFlat.forEach(r=>{
+    const sec = SECTION_MAP.find(sm=>sm.re.test(r));
+    if(sec) found.add(ORP_KEYS.includes(sec.key) ? 'ORP' : sec.key);
+    if(/^pH \(pH unit\)/i.test(r) || /\bORP\b/.test(r)) found.add('ORP');
+    // Site-plan category strings ("Metals, BTEX, PHC(F1-F4), VOC, PAH, PCB")
+    if(/\bVOCs?\b/.test(r)) found.add('VOCs');
+    if(/\bPCBs?\b/.test(r)) found.add('PCBs');
+    if(/\bBTEX\b/.test(r)) found.add('BTEX');
+    if(/\bPAHs?\b/.test(r)) found.add('PAH');
+    if(/\bPHC/.test(r)) found.add('PHC(F1-F4)');
+    if(/\bMetals\b/i.test(r) || /^\s*(?:Mercury|Chromium\s*\(VI\))\s+in\s+(?:Soil|Water)\b/i.test(r)) found.add('Metals');
+    // AGAT-style "O. Reg. 153(...) - <Category> (Water/Soil)" table titles
+    if(/Chlorophenols/i.test(r)) found.add('Chlorophenols');
+    if(/OC Pesticides/i.test(r)) found.add('OC Pesticides');
+  });
+  return CAT_PILLS.filter(c=>found.has(c));
+}
+
+function detectedCats(){
+  const seen = [];
+  state.files.filter(f=>f.status==='ready').forEach(f=>{
+    (f.cats||[]).forEach(c=>{ if(!seen.includes(c)) seen.push(c); });
+  });
+  return CAT_PILLS.filter(c=>seen.includes(c));
+}
+
+function renderCatChecks(){
+  const cats = detectedCats();
+  const wrap = document.getElementById('catSelectWrap');
+  const box = document.getElementById('catChecks');
+  if(!cats.length){ wrap.style.display = 'none'; box.innerHTML = ''; return; }
+  wrap.style.display = 'block';
+  cats.forEach(c=>{ if(!(c in state.selectedCats)) state.selectedCats[c] = true; });
+  box.innerHTML = cats.map(c=>{
+    const on = state.selectedCats[c] !== false;
+    const lbl = c === 'ORP' ? 'ORP (EC, SAR, pH)' : (DISPLAY_NAME[c]||c);
+    return `<label class="table-check${on?' checked':''}"><input type="checkbox" data-cat-key="${esc(c)}" ${on?'checked':''}> ${esc(lbl)}</label>`;
+  }).join('');
+}
+
+document.getElementById('catChecks').addEventListener('change', (e)=>{
+  const cb = e.target.closest('input[data-cat-key]');
+  if(!cb) return;
+  state.selectedCats[cb.dataset.catKey] = cb.checked;
+  renderCatChecks();
+  if(state.rerender) state.rerender();
+});
+
+document.getElementById('catSelectWrap').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-select-all],[data-select-none]');
+  if(!btn) return;
+  const on = btn.hasAttribute('data-select-all');
+  detectedCats().forEach(c=>{ state.selectedCats[c] = on; });
+  renderCatChecks();
+  if(state.rerender) state.rerender();
+});
+
+// Returns a Set of CANON_ORDER keys the user wants shown (ORP expands to EC/SAR/pH).
+// Always a real Set — an empty one (via "Deselect all") correctly shows nothing; the
+// default state has every detected category pre-checked, so out of the box this is
+// equivalent to "show everything".
+function visibleCatSet(){
+  const cats = detectedCats();
+  const on = cats.filter(c=>state.selectedCats[c] !== false);
+  const set = new Set();
+  on.forEach(c=>{ if(c==='ORP') ORP_KEYS.forEach(k=>set.add(k)); else set.add(c); });
+  return set;
+}
+
+function visibleTableSet(){
+  const labels = detectedTableLabels();
+  return new Set(labels.filter(l=>state.selectedTables[l] !== false));
+}
+
+document.getElementById('xlsxInput').addEventListener('change', async (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  await loadReferenceFile(f);
+});
+
+async function loadReferenceFile(f){
+  document.getElementById('xlsxName').style.display='block';
+  document.getElementById('xlsxName').textContent = f.name;
+  const buf = await f.arrayBuffer();
+  state.xlsxDates = parseDateWorkbook(buf);
+  state.xlsxRefBlob = f;
+  state.xlsxRefName = f.name;
+  setStatus('Reference file read: ' + refSummary(state.xlsxDates) + '.');
+  if(state.rerender) state.rerender();
+  saveProjectState();
+}
+
+// ---- reference-file dropzone: click / keyboard / drag & drop ----
+(function(){
+  const zone = document.getElementById('refDropZone');
+  const input = document.getElementById('xlsxInput');
+  if(!zone || !input || typeof zone.addEventListener !== 'function') return;
+  zone.addEventListener('click', (e)=>{ if(e.target === input) return; input.click(); });
+  zone.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); input.click(); } });
+  ['dragenter','dragover'].forEach(ev=> zone.addEventListener(ev, (e)=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover');
+  }));
+  ['dragleave','dragend'].forEach(ev=> zone.addEventListener(ev, (e)=>{
+    e.preventDefault(); zone.classList.remove('dragover');
+  }));
+  zone.addEventListener('drop', (e)=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
+    const f = (e.dataTransfer.files || [])[0];
+    if(!f) return;
+    if(!/\.(xlsx?|csv)$/i.test(f.name)){ setStatus('Reference file must be .xlsx or .xls', true); return; }
+    loadReferenceFile(f);
+  });
+})();
+
+/* ---- borehole logs: extract "End of Borehole at X.XXm" per well, then the user picks the
+   screen length (10 ft / 3.05m or 5 ft / 1.52m) per well before any depth is applied — this
+   is never guessed, since the log alone doesn't say which screen length was installed. ---- */
+const END_OF_BOREHOLE_RE = /End\s+of\s+Borehole\s+at\s+(\d+(?:\.\d+)?)\s*m/i;
+const SCREEN_LEN_OPTIONS = [
+  {value:'3.05', label:'3.05m (10 ft screen)'},
+  {value:'1.52', label:'1.52m (5 ft screen)'}
+];
+state.boreholeLogEntries = state.boreholeLogEntries || [];
+let _logFileSeq = 0;
+
+async function extractLogFileText(f){
+  const isTxt = /\.txt$/i.test(f.name) || f.type === 'text/plain';
+  if(isTxt) return await f.text();
+  const buf = await f.arrayBuffer();
+  const pages = await extractRows(buf);
+  return pages.flat().map(r=>r.text).join('\n');
+}
+
+// Finds every "End of Borehole at X.XXm" in the text and attributes it to the nearest
+// preceding line that looks like a borehole/well name; falls back to a name found in the
+// file's own filename if the log text itself doesn't label the well nearby.
+function parseBoreholeLogText(text, fileName){
+  const lines = text.split(/\r\n|\r|\n/);
+  const found = [];
+  lines.forEach((line, i)=>{
+    const m = line.match(END_OF_BOREHOLE_RE);
+    if(!m) return;
+    const bottom = parseFloat(m[1]);
+    let bh = null;
+    for(let k=i; k>=Math.max(0,i-20); k--){
+      const bhM = lines[k].match(BH_PREFIX_ANYWHERE_RE);
+      if(bhM){ bh = normalizeBhLabel(bhM[0]); break; }
+    }
+    if(!bh){
+      const fnM = fileName.match(BH_PREFIX_ANYWHERE_RE);
+      bh = fnM ? normalizeBhLabel(fnM[0]) : fileName.replace(/\.[^.]+$/,'');
+    }
+    found.push({bh, bottom, fileName, screenLen: null});
+  });
+  return found;
+}
+
+function renderLogConfirmTable(){
+  const wrap = document.getElementById('logConfirmWrap');
+  const table = document.getElementById('logConfirmTable');
+  const entries = state.boreholeLogEntries;
+  if(!entries.length){ wrap.style.display = 'none'; table.innerHTML = ''; return; }
+  wrap.style.display = 'block';
+  const rows = entries.map((e, i)=>{
+    const opts = ['<option value="">— choose —</option>']
+      .concat(SCREEN_LEN_OPTIONS.map(o=>`<option value="${o.value}" ${String(e.screenLen)===o.value?'selected':''}>${o.label}</option>`));
+    const preview = e.screenLen != null
+      ? `(${(e.bottom - e.screenLen).toFixed(2)}-${e.bottom.toFixed(2)}m)`
+      : `End of Borehole: ${e.bottom.toFixed(2)}m — pick a screen length`;
+    return `<tr>
+      <td><b>${esc(e.bh)}</b></td>
+      <td><select data-log-entry="${i}">${opts.join('')}</select></td>
+      <td class="depth-preview">${esc(preview)}</td>
+    </tr>`;
+  });
+  table.innerHTML = `<tr><th>Well</th><th>Screen length</th><th>Depth applied</th></tr>` + rows.join('');
+}
+
+document.getElementById('logConfirmTable').addEventListener('change', (e)=>{
+  const sel = e.target.closest('select[data-log-entry]');
+  if(!sel) return;
+  const i = parseInt(sel.dataset.logEntry, 10);
+  state.boreholeLogEntries[i].screenLen = sel.value ? parseFloat(sel.value) : null;
+  renderLogConfirmTable();
+  saveProjectState();
+  if(state.rerender) state.rerender();
+});
+
+async function addBoreholeLogFiles(files){
+  const chips = document.getElementById('logChips');
+  for(const f of files){
+    if(!/\.(pdf|txt)$/i.test(f.name)){
+      setStatus('Borehole log files must be .pdf or .txt', true);
+      continue;
+    }
+    const chipId = 'log'+(++_logFileSeq);
+    chips.insertAdjacentHTML('beforeend', `<span class="file-chip loading" id="${chipId}"><span class="chip-status">⏳</span>${esc(f.name)}</span>`);
+    try{
+      const text = await extractLogFileText(f);
+      const found = parseBoreholeLogText(text, f.name);
+      state.boreholeLogEntries.push(...found);
+      const chipEl = document.getElementById(chipId);
+      if(chipEl) chipEl.outerHTML = `<span class="file-chip" title="${esc(f.name)}"><span class="chip-status">📜</span>${esc(f.name)} (${found.length} well${found.length===1?'':'s'})</span>`;
+    }catch(err){
+      const chipEl = document.getElementById(chipId);
+      if(chipEl) chipEl.outerHTML = `<span class="file-chip error" title="${esc(err.message)}"><span class="chip-status">⚠️</span>${esc(f.name)}</span>`;
+    }
+  }
+  document.getElementById('logStatus').textContent = state.boreholeLogEntries.length
+    ? state.boreholeLogEntries.length + ' well(s) found across all borehole log files.'
+    : '';
+  renderLogConfirmTable();
+  saveProjectState();
+}
+
+document.getElementById('logInput').addEventListener('change', (e)=>{
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  addBoreholeLogFiles(files);
+});
+
+(function(){
+  const zone = document.getElementById('logDropZone');
+  const input = document.getElementById('logInput');
+  if(!zone || !input || typeof zone.addEventListener !== 'function') return;
+  zone.addEventListener('click', (e)=>{ if(e.target === input) return; input.click(); });
+  zone.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); input.click(); } });
+  ['dragenter','dragover'].forEach(ev=> zone.addEventListener(ev, (e)=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover');
+  }));
+  ['dragleave','dragend'].forEach(ev=> zone.addEventListener(ev, (e)=>{
+    e.preventDefault(); zone.classList.remove('dragover');
+  }));
+  zone.addEventListener('drop', (e)=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
+    addBoreholeLogFiles(Array.from(e.dataTransfer.files || []));
+  });
+})();
+
+// pasted reference text: parsed live, merged over the Excel reference (pasted values win)
+document.getElementById('pasteRef').addEventListener('input', (e)=>{
+  const txt = e.target.value;
+  state.pastedRef = txt.trim() ? parsePastedReference(txt) : null;
+  document.getElementById('pasteRefStatus').textContent =
+    state.pastedRef ? ('Parsed from pasted text: ' + refSummary(state.pastedRef) + '.') : '';
+  saveProjectState();
+  if(state.rerender) state.rerender();
+});
+
+function processNow(){
+  try{
+    const readyFiles = state.files.filter(f=>f.status==='ready');
+    if(!readyFiles.length){ setStatus('No certificate files loaded.', true); return; }
+    const coaFiles = readyFiles.filter(f=>f.kind==='coa');
+    const agatFiles = readyFiles.filter(f=>f.kind==='agat');
+    const sitePlanFiles = readyFiles.filter(f=>f.kind==='siteplan');
+
+    const wrap = document.getElementById('reportWrap');
+    wrap.innerHTML = '';
+    window._copyBlocks = {};
+    window._csvExports = {};
+    let debugCombined = '';
+
+    if(coaFiles.length || agatFiles.length){
+      const refMap = getReferenceMap();
+      const perFile = coaFiles.map(f=>({file:f, result: processCertificate(f.pages, refMap ? refMap.sampleMap : null)}))
+        .concat(agatFiles.map(f=>({file:f, result: processAgatCertificate(f.pages)})));
+      debugCombined += perFile.map(({file, result})=>
+        `── ${file.name} ──\n` + (result.ctx._debugLines.join('\n') || '(no parse notes)')
+      ).join('\n\n');
+      const merged = mergeCertificates(perFile, refMap ? refMap.bhDepthMap : null);
+      merged.ctx.visibleTables = visibleTableSet();
+      merged.ctx.visibleCats = visibleCatSet();
+      merged.ctx.tableColors = Object.assign({}, state.tableColors);
+      renderReports(merged, wrap);
+    }
+
+    if(sitePlanFiles.length){
+      const perFile = sitePlanFiles.map(f=>({file:f, result: parseSitePlanFile(f.sequential)}));
+      const merged = mergeSitePlanFiles(perFile);
+      renderSitePlanReports(merged, wrap, visibleCatSet());
+      if(debugCombined) debugCombined += '\n\n';
+      debugCombined += sitePlanFiles.map(f=>`── ${f.name} (site plan) ──\nparsed as CAD site-plan format`).join('\n\n');
+    }
+
+    if(!wrap.children.length){
+      const note = document.createElement('p');
+      note.className = 'empty-note';
+      note.textContent = 'Nothing to show with the current Standards tables / Analyses selection — tick at least one pill above and reprocess.';
+      wrap.appendChild(note);
+    }
+
+    document.getElementById('debug').textContent = debugCombined || '(no parse notes)';
+    document.getElementById('copyBtn').style.display='inline-block';
+    setStatus('Done.');
+    ensureCopyHandler();
+    buildBhNavigator();
+    state.rerender = processNow; // colour-swatch changes re-render the same inputs live
+    saveProjectState();
+  }catch(err){
+    setStatus('Processing error: '+err.message, true);
+    console.error(err);
+  }
+}
+document.getElementById('runBtn').addEventListener('click', processNow);
+
+document.getElementById('copyBtn').addEventListener('click', ()=>{
+  const text = document.getElementById('reportWrap').innerText;
+  navigator.clipboard.writeText(text).then(()=> setStatus('Copied to clipboard.'));
+});
+
+
+/* ---- floating borehole navigator: lists every rendered borehole, click to jump ---- */
+function buildBhNavigator(){
+  const nav = document.getElementById('bhNav');
+  const panel = document.getElementById('bhNavPanel');
+  const wrap = document.getElementById('reportWrap');
+  if(!nav || !panel || !wrap || typeof wrap.querySelectorAll !== 'function') return;
+  const reports = wrap.querySelectorAll('.report');
+  let html = '';
+  let count = 0;
+  reports.forEach((rep, ri)=>{
+    const badge = rep.querySelector('.report-tablebadge');
+    const title = badge ? badge.textContent.trim()
+      : (/Groundwater/i.test(rep.textContent) ? 'Groundwater' : 'Soil');
+    const rows = rep.querySelectorAll('.bh-row .bh-name');
+    if(!rows.length) return;
+    html += `<div class="nav-report">${esc(title)}</div>`;
+    rows.forEach((nameEl, bi)=>{
+      const anchorId = 'bhx_' + ri + '_' + bi;
+      nameEl.closest('tr').id = anchorId;
+      html += `<button type="button" class="nav-bh" data-jump="${anchorId}">${esc(nameEl.textContent.trim())}</button>`;
+      count++;
+    });
+  });
+  panel.innerHTML = html;
+  nav.classList.toggle('on', count > 0);
+}
+
+(function(){
+  const nav = document.getElementById('bhNav');
+  const toggle = document.getElementById('bhNavToggle');
+  const panel = document.getElementById('bhNavPanel');
+  if(!nav || !toggle || !panel || typeof toggle.addEventListener !== 'function') return;
+  toggle.addEventListener('click', ()=> nav.classList.toggle('open'));
+  panel.addEventListener('click', (e)=>{
+    const b = e.target.closest('[data-jump]');
+    if(!b) return;
+    const target = document.getElementById(b.dataset.jump);
+    if(target && target.scrollIntoView) target.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+})();
+
+function setStatus(msg, isErr){
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = isErr ? 'err' : '';
+}
+
+// Plain-text COA (e.g. a copy-pasted export): treat as one page of trimmed, non-empty lines.
+// The row parser already tolerates bare strings (no positional {x} data), which only affects
+// the position-aware "Duplicate" marker matching — a standalone "Duplicate" line without
+// coordinates simply won't be attributable to a column, same as any other unmatched row.
+function linesToPages(text){
+  const lines = text.split(/\r\n|\r|\n/).map(l=>l.replace(/\s+/g,' ').trim()).filter(l=>l.length);
+  return [lines];
+}
+
+/* ---------- PDF text -> row-structured text, position aware ---------- */
+async function extractRows(arrayBuffer){
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  const pages = [];
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const buckets = [];
+    content.items.forEach(item=>{
+      const y = item.transform[5];
+      const x = item.transform[4];
+      const str = item.str.trim();
+      if(!str) return;
+      let bucket = buckets.find(b => Math.abs(b.y - y) < 2.2);
+      if(!bucket){ bucket = {y, items:[]}; buckets.push(bucket); }
+      bucket.items.push({x, str});
+    });
+    buckets.sort((a,b)=> b.y - a.y);
+    const rows = buckets.map(b=>{
+      b.items.sort((a,b)=>a.x-b.x);
+      const text = b.items.map(it=>it.str).join(' ').replace(/\s+/g,' ').trim();
+      return {text, items: b.items};
+    }).filter(r=>r.text.length);
+    pages.push(rows);
+  }
+  return pages;
+}
+
+/* =====================================================================================
+   EXCEL / CSV CERTIFICATE CONVERTER
+   Some labs deliver the Certificate of Analysis as a workbook instead of a PDF. The
+   layout mirrors the printed certificate (letterhead block, ID row, borehole row,
+   depth row, section headers, parameter rows), so rather than a second parser, the
+   sheet is converted into the same "pages of text rows" shape the PDF pipeline eats.
+   Three workbook-specific realities are handled here:
+     1. MERGED CELLS — when two parameters share one regulatory standard (e.g. 1- and
+        2-Methylnaphthalene under O.Reg 153), the lab merges the standard cell across
+        both rows. Reading naively yields an EMPTY standard for the second parameter,
+        silently skipping its exceedance check — so merged values are propagated to
+        every cell they span before conversion.
+     2. HELPER COLUMNS — sheets carry hidden calculation columns to the right of the
+        real standards (used for the lab's conditional formatting). Joining them into
+        the row text would make the right-to-left standards scan read the WRONG cells,
+        so each certificate block is truncated at its right-most "Table N" column.
+     3. PAGINATION — the printed certificate's page breaks (each page repeats the
+        "Client:" letterhead) are recreated as parser pages, which keeps QA/QC blocks
+        (lab duplicates, matrix spikes) safely isolated from data blocks, exactly as
+        they are in the PDF flow.
+   Only the workbook's FIRST sheet is processed — lab workbooks carry one sheet per
+   standards combination and list the operative one first.
+   ===================================================================================== */
+function workbookCoaToPages(data, isText){
+  const wb = XLSX.read(isText ? data : new Uint8Array(data), {type: isText ? 'string' : 'array'});
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+
+  // 1. propagate merged-cell values into every cell of their range
+  (ws['!merges'] || []).forEach(rng=>{
+    const topAddr = XLSX.utils.encode_cell({r: rng.s.r, c: rng.s.c});
+    const top = ws[topAddr];
+    if(!top) return;
+    for(let R = rng.s.r; R <= rng.e.r; R++){
+      for(let C = rng.s.c; C <= rng.e.c; C++){
+        const addr = XLSX.utils.encode_cell({r: R, c: C});
+        if(addr !== topAddr && !ws[addr]) ws[addr] = {t: top.t, v: top.v, w: top.w};
+      }
+    }
+  });
+
+  const rows = XLSX.utils.sheet_to_json(ws, {header: 1, raw: false, defval: ''});
+  const TABLE_CELL_RE = /^Table\s+\d+(\.\d+)?$/i;
+  const pages = [];
+  let page = null;
+  let lastCol = null; // right-most real column of the current certificate block
+
+  rows.forEach(r=>{
+    const cells = r.map(c=>String(c).replace(/\s+/g,' ').trim());
+    const joined = cells.filter(Boolean).join(' ');
+    if(!joined) return;
+
+    // 3. new printed page starts at each repeated letterhead
+    if(/^Client\s*:/i.test(joined)){ page = []; pages.push(page); lastCol = null; }
+    if(!page){ page = []; pages.push(page); }
+
+    // 2. the borehole row carries the "Table N" labels — its right-most one bounds the block
+    const tblCols = cells.map((c,i)=>TABLE_CELL_RE.test(c) ? i : -1).filter(i=>i >= 0);
+    if(tblCols.length) lastCol = Math.max(...tblCols);
+
+    const eff = lastCol != null ? cells.slice(0, lastCol + 1) : cells;
+    const text = eff.filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+    if(text) page.push(text);
+  });
+
+  return {pages, sheetName, otherSheets: wb.SheetNames.slice(1).map(s=>s.trim())};
+}
+
+/* =====================================================================================
+   SITE-PLAN (CAD FIGURE) PARSER
+   Handles a different Fisher document type: Phase I/II ESA reports whose analytical
+   results are laid out as small floating text boxes scattered across a CAD site-plan
+   drawing (one box per borehole per sampling round), rather than the linear per-sample
+   columns of a lab Certificate of Analysis. Detected separately at upload time; never
+   touches the COA pipeline above.
+
+   Key discovery (verified against a real 18-page report): pdf.js's content.items array
+   preserves the ORIGINAL box-by-box drawing order — every line belonging to one box
+   arrives consecutively, then the next box's lines follow. So no spatial (x/y) clustering
+   is needed; a simple sequential state machine over the trimmed item-text stream is
+   sufficient and reliable.
+   ===================================================================================== */
+
+function isSitePlanSignature(text){
+  return /LEGEND FOR TABLES WITH COPCs/i.test(text)
+      || /Borehole ID \(Sample Date\)/i.test(text)
+      || /Monitoring Well ID \(Sample Date\)/i.test(text);
+}
+
+// Natural reading-order text extraction (no y-bucketing) — required for the site-plan
+// state machine, which depends on the PDF's original box-by-box item sequence.
+async function extractSequential(arrayBuffer){
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  const pages = [];
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(it=>it.str.trim()).filter(s=>s.length));
+  }
+  return pages;
+}
+
+const SP_BOX_HEADER_RE = /^(.+?)\s+\((\d{1,2}\s+[A-Za-z]+\.?,?\s*\d{4})\)$/;
+const SP_FILED_DUP_RE = /^\(Filed Duplicate\)$/i;
+const SP_NUMERIC_RE = /^[\d,.]+$/;
+const SP_TABLE_FLAG_RE = /^<Table/i;
+
+// Walk one page's natural-order text items and reconstruct every borehole "box":
+// {bh, date, samples:[{id, isDup, depth, category, flag, params:[{name,val,std}]}]}.
+// Params are only populated on single-category "detail" figures (e.g. "Metals in Soil"),
+// where an exceedance is shown as parameter names, then that many measured values, then
+// that many standard values, as three consecutive runs of tokens.
+function parseSitePlanPage(items){
+  const boxes = [];
+  let i = 0;
+  let currentBox = null;
+
+  while(i < items.length){
+    const tok = items[i];
+
+    if(SP_BOX_HEADER_RE.test(tok)){
+      const m = tok.match(SP_BOX_HEADER_RE);
+      currentBox = {bh: m[1].trim(), date: m[2].trim(), samples: []};
+      boxes.push(currentBox);
+      i++;
+      continue;
+    }
+
+    if(currentBox && SAMPLE_ID_RE.test(tok)){
+      const sample = {id: tok, isDup:false, depth:null, category:null, flag:null, params:[]};
+      i++;
+      if(items[i] && SP_FILED_DUP_RE.test(items[i])){ sample.isDup = true; i++; }
+      if(items[i] && /^\(.+\)$/.test(items[i])){
+        let d = items[i].replace(/^\(|\)$/g,'').trim();
+        if(/^N\/A/i.test(d)) d = 'N/A';
+        sample.depth = d;
+        i++;
+      }
+      // Category list may wrap across lines; a trailing comma signals "more to come".
+      let catParts = [];
+      while(i < items.length && !SP_BOX_HEADER_RE.test(items[i]) && !SAMPLE_ID_RE.test(items[i]) && !SP_TABLE_FLAG_RE.test(items[i])){
+        catParts.push(items[i]);
+        const endsWithComma = /,\s*$/.test(items[i]);
+        i++;
+        if(!endsWithComma) break;
+      }
+      sample.category = catParts.join(' ').replace(/\s+/g,' ').trim();
+
+      if(i < items.length){
+        if(SP_TABLE_FLAG_RE.test(items[i])){
+          sample.flag = items[i]; i++;
+        } else {
+          // Bounded lookahead: the largest real multi-parameter block seen is 9 names.
+          // A longer scan to reach a numeric token means this flag ran into trailing page
+          // furniture (legend/title-block text) because it was the last sample on the page —
+          // in that case the flag is exactly the one token it actually is.
+          const LOOKAHEAD_CAP = 12;
+          let names = [];
+          let j = i;
+          while(j < items.length && names.length < LOOKAHEAD_CAP &&
+                !SP_NUMERIC_RE.test(items[j]) && !SP_BOX_HEADER_RE.test(items[j]) && !SAMPLE_ID_RE.test(items[j])){
+            names.push(items[j]); j++;
+          }
+          if(names.length && names.length < LOOKAHEAD_CAP && j < items.length && SP_NUMERIC_RE.test(items[j])){
+            const n = names.length;
+            const values = items.slice(j, j+n);
+            const stds = items.slice(j+n, j+2*n);
+            names.forEach((nm, k)=> sample.params.push({name: nm, val: values[k], std: stds[k]}));
+            sample.flag = names.join(', ');
+            i = j + 2*n;
+          } else {
+            sample.flag = items[i].replace(/,(?!\s)/g, ', ');
+            i = i + 1;
+          }
+        }
+      }
+      currentBox.samples.push(sample);
+      continue;
+    }
+    i++;
+  }
+  return boxes;
+}
+
+function detectSitePlanMatrix(pageText){
+  if(/in\s+Groundwater/i.test(pageText)) return 'GW';
+  if(/in\s+Soil/i.test(pageText)) return 'SOIL';
+  return null;
+}
+
+// Parse one whole site-plan PDF: every page whose title names a FIGURE and a matrix
+// (Soil / Groundwater) is walked; results for the SAME sample ID across the "all COPCs"
+// summary figure and the single-category "detail" figures are merged into one record —
+// giving every sample its full category list plus any numeric exceedance detail, exactly
+// mirroring the {bh, depth, categories, exceed} shape the COA pipeline already uses.
+function parseSitePlanFile(pages){
+  const soilSamples = {};
+  const gwSamples = {};
+
+  pages.forEach(items=>{
+    const pageText = items.join(' ');
+    const figM = pageText.match(/FIGURE\s+([\d.]+)/i);
+    if(!figM) return;
+    const matrix = detectSitePlanMatrix(pageText);
+    if(!matrix) return;
+    const target = matrix === 'SOIL' ? soilSamples : gwSamples;
+    const boxes = parseSitePlanPage(items);
+
+    boxes.forEach(box=>{
+      box.samples.forEach(sm=>{
+        if(!target[sm.id]){
+          target[sm.id] = {bh: box.bh, date: box.date, depth: sm.depth, isDup: sm.isDup, categories:{}, exceed:{}, flagsSeen:{}};
+        }
+        const rec = target[sm.id];
+        if(!rec.depth && sm.depth) rec.depth = sm.depth;
+        if(sm.isDup) rec.isDup = true;
+
+        const normCat = c => c.replace(/\s+\(/g, '(').replace(/\s+/g,' ').trim();
+        sm.category.split(',').map(c=>normCat(c.trim())).filter(Boolean).forEach(c=>{ rec.categories[c] = true; });
+
+        if(sm.params.length){
+          const cat = normCat(sm.category) || '(parameter)';
+          if(!rec.exceed[cat]) rec.exceed[cat] = [];
+          rec.exceed[cat].push(...sm.params);
+        } else if(sm.flag && !SP_TABLE_FLAG_RE.test(sm.flag)){
+          // Category-level flag with no numeric detail yet (e.g. from the "all COPCs" page,
+          // or a detail page whose exceedance is a bare category repeat) — record which
+          // category failed so it's visible even before/without a numeric breakdown.
+          sm.flag.split(',').map(c=>normCat(c.trim())).filter(Boolean).forEach(c=>{
+            if(!rec.exceed[c]) rec.exceed[c] = [];
+            rec.flagsSeen[c] = true;
+          });
+        }
+        if(sm.flag && SP_TABLE_FLAG_RE.test(sm.flag)) rec.scsLabel = sm.flag.replace(/^</,'').trim();
+      });
+    });
+  });
+
+  return {soilSamples, gwSamples};
+}
+
+// Sample IDs are globally unique per lab job, so merging multiple site-plan files (e.g.
+// Phase I and a later Phase II report for the same site) is collision-free, same principle
+// as the COA multi-file merge.
+function mergeSitePlanFiles(perFile){
+  const soilSamples = {}, gwSamples = {};
+  perFile.forEach(({file, result})=>{
+    Object.assign(soilSamples, result.soilSamples);
+    Object.assign(gwSamples, result.gwSamples);
+  });
+  return {soilSamples, gwSamples};
+}
+
+// Group every sample by its (already page-consistent) borehole/monitoring-well name, so
+// all of a location's depths/rounds — e.g. every "BH204" box across every figure — render
+// together under one heading. Boreholes are sorted NATURALLY by name (BH1, BH2, BH10,
+// BH101, GS-1, GS-2, MW106…), the same rule the COA pipeline uses, so any borehole can be
+// found at a glance. Entries within a borehole run chronologically (oldest round first),
+// then by top depth, then by sample ID.
+function buildSitePlanBHGroups(samplesMap){
+  const groups = [];
+  const byName = {};
+  Object.keys(samplesMap).forEach(id=>{
+    const s = samplesMap[id];
+    const key = (s.bh||'?').trim();
+    if(!byName[key]){ byName[key] = {bh:key, members:[]}; groups.push(byName[key]); }
+    byName[key].members.push(id);
+  });
+  groups.sort((a,b)=>naturalCompareBhName(a.bh, b.bh));
+  groups.forEach(g=>{
+    g.members.sort((a,b)=>{
+      const sa = samplesMap[a], sb = samplesMap[b];
+      const ta = parseDateLoose(sa.date);
+      const tb = parseDateLoose(sb.date);
+      if(ta != null && tb != null && ta !== tb) return ta - tb;
+      if(ta != null && tb == null) return -1;
+      if(ta == null && tb != null) return 1;
+      const da = parseTopDepth(sa.depth);
+      const db = parseTopDepth(sb.depth);
+      if(da != null && db != null && da !== db) return da - db;
+      if(da != null && db == null) return -1;
+      if(da == null && db != null) return 1;
+      return naturalCompareSampleId(a, b);
+    });
+  });
+  return groups;
+}
+
+// Site-plan category strings vary ("VOC" vs "VOCs", "PHC (F1-F4)", "ORP (pH)") — match them
+// tolerantly against the selected canon keys.
+function sitePlanCatVisible(catStr, catSet){
+  if(!catSet) return true;
+  const c = catStr.toUpperCase();
+  if(/ORP|^EC\b|^SAR\b|^PH\b/.test(c)) return catSet.has('EC') || catSet.has('SAR') || catSet.has('pH');
+  if(/PHC/.test(c)) return catSet.has('PHC(F1-F4)');
+  if(/PCB/.test(c)) return catSet.has('PCBs');
+  if(/VOC/.test(c)) return catSet.has('VOCs');
+  if(/BTEX/.test(c)) return catSet.has('BTEX');
+  if(/PAH/.test(c)) return catSet.has('PAH');
+  if(/METAL/.test(c)) return catSet.has('Metals');
+  return true; // never hide something we can't classify (e.g. H.F.M.)
+}
+
+function renderSitePlanReports({soilSamples, gwSamples}, wrap, catSet){
+  wrap = wrap || document.getElementById('reportWrap');
+  if(Object.keys(soilSamples).length){
+    const el = buildSitePlanReportEl('Soil — Consolidated by Borehole', soilSamples, 'ppm', catSet);
+    if(el) wrap.appendChild(el);
+  }
+  if(Object.keys(gwSamples).length){
+    const el = buildSitePlanReportEl('Groundwater — Consolidated by Monitoring Well', gwSamples, 'µg/L', catSet);
+    if(el) wrap.appendChild(el);
+  }
+}
+
+function buildSitePlanReportEl(title, samplesMap, unit, catSet){
+  const groups0 = buildSitePlanBHGroups(samplesMap);
+  // Apply the analyses filter: keep only entries with at least one visible category.
+  const groups = groups0.map(g=>({
+    ...g,
+    members: g.members.filter(id=>Object.keys(samplesMap[id].categories).some(c=>sitePlanCatVisible(c, catSet)))
+  })).filter(g=>g.members.length>0);
+  if(!groups.length) return null;
+  const el = document.createElement('div');
+  el.className = 'report';
+
+  const fullTsvKey = 'full_sp_'+title.replace(/\W/g,'');
+  let html = `<div class="report-head">
+      <div><h2>${esc(title)}</h2>
+        <p class="meta">Parsed from CAD site-plan figures — every borehole/well listed once, all its sample depths and rounds shown together.</p>
+      </div>
+      <div class="report-actions">
+        <button class="copy-btn" data-copy-block="${fullTsvKey}">📋 Copy full table</button>
+        <button class="copy-btn" data-csv-export="sp_all_summary_${title.replace(/\W/g,'')}" title="Export every borehole in this report as one Summary CSV for AutoCAD">⬇ ALL SUMMARY CSV</button>
+        <button class="copy-btn" data-csv-export="sp_all_detailed_${title.replace(/\W/g,'')}" title="Export every borehole in this report as one Detailed CSV for AutoCAD">⬇ ALL DETAILED CSV</button>
+      </div>
+    </div>
+    <p class="copy-hint">Click any cell to copy it. Use “Copy block” to grab one borehole's full record as tab-separated text.</p>
+    <table class="tally">
+      <thead><tr>
+        <th>Sample Depth<br>(Sample Date)</th>
+        <th>Method Group or<br>Parameter Analyzed</th>
+        <th>Result / Exceedance</th>
+        <th>Applicable SCS (${esc(unit)})</th>
+      </tr></thead><tbody>`;
+
+  const reportRows = [];
+  const SUMMARY_HEADER = 'BH,Date,SampleID,Depth,Analyses,ExceededGroups,ComplianceText';
+  const DETAILED_HEADER = 'BH,Date,SampleID,Depth,Analyses,ExceededGroup,Parameter,ResultValue,StandardValue,ComplianceText';
+  const allSummaryLines = [SUMMARY_HEADER];
+  const allDetailedLines = [DETAILED_HEADER];
+
+  groups.forEach((g, gi)=>{
+    const blockId = 'blk_sp_'+title.replace(/\W/g,'')+'_'+gi;
+    const blockTsvRows = [[g.bh, '', '', '']];
+    const summaryLines = [SUMMARY_HEADER];
+    const detailedLines = [DETAILED_HEADER];
+
+    html += `<tr class="bh-row">
+      <td colspan="4" data-copyable data-copy="${esc(g.bh)}">
+        <span class="bh-name">${esc(g.bh)}</span>${g.members.length>1?`<span class="bh-rounds-count">${g.members.length} entries</span>`:''}
+        <button class="copy-btn" data-copy-block="${blockId}" title="Copy this borehole's full record as tab-separated text">📋 Copy block</button>
+        <button class="copy-btn" data-csv-export="sp_sum_${blockId}" title="Export this borehole as a Summary CSV for AutoCAD">⬇ SUMMARY CSV</button>
+        <button class="copy-btn" data-csv-export="sp_det_${blockId}" title="Export this borehole as a Detailed CSV for AutoCAD">⬇ DETAILED CSV</button>
+      </td></tr>`;
+
+    g.members.forEach(id=>{
+      const s = samplesMap[id];
+      const cats = Object.keys(s.categories).filter(c=>sitePlanCatVisible(c, catSet));
+      const excCats = Object.keys(s.exceed).filter(c=>sitePlanCatVisible(c, catSet));
+      const hasExc = excCats.length > 0;
+      const detailRowCount = excCats.reduce((sum,c)=> sum + 1 + (s.exceed[c].length || 1), 0);
+      const rowspan = hasExc ? detailRowCount + 1 : 1;
+
+      const depthLabel = s.depth || '?';
+      const dateLabel = s.date ? ' ('+s.date+')' : '';
+      const idText = depthLabel + (s.isDup ? ' (Filed Dup)' : '');
+      const catsPlain = cats.join(', ');
+      const flagPlain = hasExc ? excCats.join(', ') : (s.scsLabel || 'Met SCS');
+      const complianceText = hasExc ? '' : (s.scsLabel ? '<'+s.scsLabel : 'Met SCS');
+      const csvId = id + (s.isDup ? ' (Field Duplicate)' : '');
+
+      blockTsvRows.push([idText+dateLabel, catsPlain, flagPlain, hasExc?'':(s.scsLabel||'')]);
+      const summaryRow = csvRow([g.bh, s.date||'', csvId, s.depth||'', catsPlain, hasExc?excCats.join(', '):'', complianceText]);
+      summaryLines.push(summaryRow); allSummaryLines.push(summaryRow);
+
+      html += `<tr>
+        <td class="sid ${hasExc?'exceed':'ok'}" rowspan="${rowspan}" data-copyable data-copy="${esc(idText+dateLabel)}">${esc(depthLabel)}${s.isDup?' <span class="depth">(Filed Dup)</span>':''}<span class="depth">${esc(dateLabel)}</span></td>
+        <td data-copyable data-copy="${esc(catsPlain)}">${esc(catsPlain)}</td>`;
+
+      if(hasExc){
+        html += `<td class="center exc" data-copyable data-copy="${esc(flagPlain)}">${esc(flagPlain)}</td><td></td></tr>`;
+        excCats.forEach(cat=>{
+          html += `<tr class="cat-head"><td data-copyable data-copy="${esc(cat)}"><b class="exc">${esc(cat)}</b></td><td></td><td></td></tr>`;
+          if(s.exceed[cat].length){
+            s.exceed[cat].forEach(p=>{
+              const pName = outputParameterName(p.name, cat);
+              blockTsvRows.push(['', pName, String(p.val), String(p.std)]);
+              const detRow = csvRow([g.bh, s.date||'', csvId, s.depth||'', catsPlain, cat, pName, String(p.val), String(p.std), '']);
+              detailedLines.push(detRow); allDetailedLines.push(detRow);
+              html += `<tr>
+                <td data-copyable data-copy="${esc(pName)}">${esc(pName)}</td>
+                <td class="center exc" data-copyable data-copy="${esc(String(p.val))}">${esc(String(p.val))}</td>
+                <td class="center" data-copyable data-copy="${esc(String(p.std))}">${esc(String(p.std))}</td>
+              </tr>`;
+            });
+          } else {
+            blockTsvRows.push(['', '(no numeric detail on this report)', '', '']);
+            const detRow = csvRow([g.bh, s.date||'', csvId, s.depth||'', catsPlain, cat, '', '', '', '']);
+            detailedLines.push(detRow); allDetailedLines.push(detRow);
+            html += `<tr><td colspan="3" class="italic">(no numeric detail on this report)</td></tr>`;
+          }
+        });
+      } else {
+        const detRow = csvRow([g.bh, s.date||'', csvId, s.depth||'', catsPlain, '', '', '', '', complianceText]);
+        detailedLines.push(detRow); allDetailedLines.push(detRow);
+        html += `<td class="italic" colspan="2" data-copyable data-copy="${esc(s.scsLabel||'')}">${esc(s.scsLabel ? '<'+s.scsLabel : 'Met SCS')}</td></tr>`;
+      }
+    });
+
+    const blockTsv = blockTsvRows.map(r=>r.join('\t')).join('\n');
+    reportRows.push(...blockTsvRows);
+    (window._copyBlocks = window._copyBlocks || {})[blockId] = {tsv: blockTsv, html: tsvRowsToClipHtml(blockTsvRows, 'neutral')};
+    (window._csvExports = window._csvExports || {})['sp_sum_'+blockId] = {
+      name: safeFileName(g.bh + '_AutoCAD_Summary_' + title) + '.csv', text: summaryLines.join('\r\n')
+    };
+    (window._csvExports = window._csvExports || {})['sp_det_'+blockId] = {
+      name: safeFileName(g.bh + '_AutoCAD_Detailed_' + title) + '.csv', text: detailedLines.join('\r\n')
+    };
+  });
+
+  html += `</tbody></table>`;
+  el.innerHTML = html;
+
+  const fullReportTsv = reportRows.map(r=>r.join('\t')).join('\n');
+  (window._copyBlocks = window._copyBlocks || {})[fullTsvKey] = {tsv: fullReportTsv, html: tsvRowsToClipHtml(reportRows, 'neutral')};
+  (window._csvExports = window._csvExports || {})['sp_all_summary_'+title.replace(/\W/g,'')] = {
+    name: safeFileName('Project_AutoCAD_Summary_' + title) + '.csv', text: allSummaryLines.join('\r\n')
+  };
+  (window._csvExports = window._csvExports || {})['sp_all_detailed_'+title.replace(/\W/g,'')] = {
+    name: safeFileName('Project_AutoCAD_Detailed_' + title) + '.csv', text: allDetailedLines.join('\r\n')
+  };
+
+  return el;
+}
+
+/* =====================================================================================
+   THIRD-PARTY LAB PARSER: AGAT LABORATORIES
+   -------------------------------------------------------------------------------------
+   AGAT's own Certificate of Analysis is structurally unlike Fisher's own COA template:
+     - column order is REVERSED (name, unit, standard, RDL, then sample results — Fisher
+       puts the standard columns LAST);
+     - one small table per analyte package, titled "O. Reg. 153(...) - <Category> (Water
+       or Soil)", each with its own compact borehole/date/sample-ID header block;
+     - sample IDs are bare lab numbers ("7969205"), not job-number-prefixed;
+     - duplicates are marked by a wrapped "<Borehole> - Field Dup" column header, not a
+       "(Dup)" suffix or a standalone marker row.
+   Detected separately at upload time (by "AGAT WORK ORDER" / agatlabs.com) and parsed
+   with real (x, y) text-item positions from extractRows — column alignment is exact, so
+   values are matched by nearest-x to their header rather than by token position, which
+   correctly handles rows where the standard (G/S) column is simply blank for that
+   parameter. Output is the same {bh, depth, isDup, categories, exceed} sample shape the
+   Fisher parser produces, so it flows through the existing merge/render/CSV pipeline
+   completely unchanged.
+   ===================================================================================== */
+
+function isAgatSignature(text){
+  return /AGAT\s+WORK\s+ORDER/i.test(text) || /agatlabs\.com/i.test(text);
+}
+
+const AGAT_TABLE_TITLE_RE = /O\.\s*Reg\.\s*\d+(?:\(\d+\))?\s*-\s*(.+?)\s*\((Water|Soil)\)$/i;
+const AGAT_HEADER_ROW_RE = /^Parameter\s+Unit\s+G\s*\/\s*S\s+RDL\b/i;
+const AGAT_SURROGATE_ROW_RE = /^Surrogate\b/i;
+const AGAT_ID_TOKEN_RE = /^\d+$/;
+
+// Printed AGAT category names -> this app's canonical category key. Anything not listed
+// falls back to the printed name verbatim, so a category we haven't catalogued yet still
+// shows up (just without a curated short label) rather than being silently dropped.
+const AGAT_CATEGORY_MAP = {
+  'chlorophenols':'Chlorophenols', 'oc pesticides':'OC Pesticides',
+  'metals':'Metals', 'pahs':'PAH', 'pah':'PAH', 'phcs':'PHC(F1-F4)', 'phc':'PHC(F1-F4)',
+  'btex':'BTEX', 'vocs':'VOCs', 'voc':'VOCs', 'pcbs':'PCBs', 'pcb':'PCBs'
+};
+function agatCategoryKey(name){
+  return AGAT_CATEGORY_MAP[name.trim().toLowerCase()] || name.trim();
+}
+
+function extractAgatMeta(rowsFlat){
+  const text = rowsFlat.join(' ');
+  const jobM = text.match(/AGAT\s+WORK\s+ORDER:\s*(\S+)/i);
+  const projM = text.match(/PROJECT:\s*(\S+)/i);
+  const locM = text.match(/SAMPLING SITE:\s*(.+?)\s+SAMPLED BY:/i);
+  const tableM = text.match(/Refers to Table\s+(\d+(?:\.\d+)?)/i);
+  return {
+    jobNo: jobM ? jobM[1] : '(unknown)',
+    projectId: projM ? projM[1] : '',
+    location: locM ? locM[1].trim() : '',
+    tableLabel: tableM ? ('Table ' + tableM[1]) : 'Table 3'
+  };
+}
+
+// Walk one page's position-aware rows ({text, items}) and fold every parameter result into
+// `samples`. State resets per page because AGAT reprints the full title + header block on
+// every page (confirmed against a real 9-page, multi-table report) — a page never continues
+// a table started on the previous one without repeating its own complete header.
+function parseAgatPage(rows, samples, tableLabel, matrixHolder){
+  let activeCategory = null;
+  let mode = null;            // null -> 'header' (collecting bh/date fragments) -> 'data' | 'skip'
+  let headerFragments = [];   // {x, text, kind:'bh'|'date'}, accumulated until the ID row resolves columns
+  let columns = null;         // {ids, idX, unitX, rdlX, gsX, bh:[], date:[]}
+
+  rows.forEach(rowObj=>{
+    const row = typeof rowObj === 'string' ? rowObj : rowObj.text;
+    const items = typeof rowObj === 'string' ? [] : rowObj.items;
+
+    if(/^(Quality Assurance|Method Summary|Accreditations and Associations|Chain of Custody)/i.test(row)){
+      activeCategory = null; mode = null; return; // never let a non-table page's rows leak in
+    }
+
+    const titleM = row.match(AGAT_TABLE_TITLE_RE);
+    if(titleM){
+      activeCategory = agatCategoryKey(titleM[1]);
+      if(matrixHolder && !matrixHolder.value) matrixHolder.value = /water/i.test(titleM[2]) ? 'GW' : 'SOIL';
+      mode = 'header'; headerFragments = []; columns = null;
+      return;
+    }
+    if(!activeCategory) return;
+
+    if(AGAT_HEADER_ROW_RE.test(row)){
+      const idItems = items.filter(it=>AGAT_ID_TOKEN_RE.test(it.str) && it.x > 250);
+      const unitX = (items.find(it=>it.str==='Unit')||{}).x;
+      const rdlX  = (items.find(it=>it.str==='RDL')||{}).x;
+      const gsItem = items.find(it=>/^G\s*\/\s*S$/i.test(it.str));
+      columns = {ids: idItems.map(it=>it.str), idX: idItems.map(it=>it.x), unitX, rdlX, gsX: gsItem?gsItem.x:null, bh:[], date:[]};
+      columns.idX.forEach(cx=>{
+        const bhFrags = headerFragments.filter(f=>f.kind==='bh' && Math.abs(f.x-cx)<40);
+        const dateFrags = headerFragments.filter(f=>f.kind==='date' && Math.abs(f.x-cx)<40);
+        columns.bh.push(bhFrags.map(f=>f.text).join(' ').replace(/\s+/g,' ').trim());
+        columns.date.push(dateFrags.map(f=>f.text).join(' ').trim());
+      });
+      mode = 'data';
+      return;
+    }
+    if(AGAT_SURROGATE_ROW_RE.test(row)){ mode = 'skip'; return; } // QA recovery rows, not real results
+    if(/^Comments:/i.test(row)){ activeCategory = null; mode = null; return; }
+
+    if(mode === 'header'){
+      const isDateRow = /^DATE SAMPLED:/i.test(row);
+      items.forEach(it=>{
+        if(/^(SAMPLE DESCRIPTION:|SAMPLE TYPE:|DATE SAMPLED:)$/i.test(it.str)) return;
+        if(/^(Water|Soil|GW)$/i.test(it.str)) return;
+        if(isDateRow){ if(/^\d{4}-\d{2}-\d{2}$/.test(it.str)) headerFragments.push({x:it.x, text:it.str, kind:'date'}); return; }
+        if(it.x > 250) headerFragments.push({x:it.x, text:it.str, kind:'bh'});
+      });
+      return;
+    }
+
+    if(mode === 'data'){
+      if(!columns || !columns.ids.length) return;
+      if(/^Sediment\b/i.test(row)) return; // visual-inspection comment field, not a lab parameter
+      const nameItems = items.filter(it=>it.x < columns.unitX - 5);
+      const name = nameItems.map(it=>it.str).join(' ').replace(/\s+/g,' ').trim();
+      if(!name) return;
+      const gsItem = columns.gsX != null ? items.find(it=>Math.abs(it.x-columns.gsX)<18 && /^[\d,]+(\.\d+)?$/.test(it.str)) : null;
+      const std = gsItem ? parseFloat(gsItem.str.replace(/,/g,'')) : NaN;
+
+      columns.ids.forEach((id, ci)=>{
+        const cx = columns.idX[ci];
+        const valItem = items.find(it=>Math.abs(it.x-cx)<15);
+        if(!valItem) return;
+
+        if(!samples[id]){
+          const rawBh = columns.bh[ci] || id;
+          const isDup = /Field\s*Dup/i.test(rawBh);
+          const cleanBh = rawBh.replace(/[\s-]*Field\s*Dup.*$/i,'').trim() || rawBh;
+          samples[id] = {bh: cleanBh, depth:null, isDup, categories:{}, exceed:{}, date: columns.date[ci] || null};
+        }
+        samples[id].categories[activeCategory] = true;
+
+        const isND = /^</.test(valItem.str);
+        const val = parseFloat(valItem.str.replace(/[<,]/g,''));
+        if(!isND && !isNaN(val) && !isNaN(std) && val > std){
+          if(!samples[id].exceed[tableLabel]) samples[id].exceed[tableLabel] = {};
+          if(!samples[id].exceed[tableLabel][activeCategory]) samples[id].exceed[tableLabel][activeCategory] = [];
+          samples[id].exceed[tableLabel][activeCategory].push({name, val, std});
+        }
+      });
+    }
+  });
+}
+
+// Parses one whole AGAT PDF (already extracted via extractRows, same {text,items} shape the
+// Fisher parser uses) into the standard {samples, ctx} result — a drop-in alternative to
+// processCertificate for this lab's report format.
+function processAgatCertificate(pages){
+  const rowsFlat = pages.flat().map(r => typeof r === 'string' ? r : r.text);
+  const meta = extractAgatMeta(rowsFlat);
+  const samples = {};
+  const matrixHolder = {value: null};
+  pages.forEach(rows => parseAgatPage(rows, samples, meta.tableLabel, matrixHolder));
+
+  const ctx = {
+    matrix: matrixHolder.value || 'GW',
+    texturePref: 'standard',
+    dateMapRef: null,
+    tableLabels: [meta.tableLabel],
+    jobNo: meta.jobNo,
+    dateSampledSingle: null,
+    dateRangeRaw: null,
+    projectName: '',
+    projectId: meta.projectId,
+    location: meta.location,
+    _debugLines: ['AGAT report parsed: ' + Object.keys(samples).length + ' samples, tableLabel=' + meta.tableLabel]
+  };
+  return {samples, ctx};
+}
+
+/* ---------- xlsx sampling date reference ---------- */
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function formatDateDDMMYY(v){
+  if(Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v)){
+    return `${v.getUTCDate()} ${MONTH_NAMES[v.getUTCMonth()]} ${v.getUTCFullYear()}`;
+  }
+  return v || null;
+}
+
+/* ---------- reference harvesting: shared by the Excel reference file AND pasted text ---------- */
+// Screen intervals / depths in reference sources come in many spellings:
+// "6.10-6.71m", "6.10-6.71" (no unit), "3.81 - 6.86 m", en-dash variants, or a bare "1.20".
+const REF_DEPTH_RE = /^\d+(\.\d+)?\s*[-\u2013\u2014]\s*\d+(\.\d+)?\s*m?$|^\d+(\.\d+)?\s*m$/i;
+const refNormDepth = v => String(v).trim().replace(/^\(+|\)+$/g,'').replace(/\s+/g,'').replace(/[\u2013\u2014]/g,'-').replace(/m?$/i,'') + 'm';
+const refIsDepth = c => (typeof c === 'string' && REF_DEPTH_RE.test(c.trim().replace(/^\(+|\)+$/g,'')))
+                     || (typeof c === 'number' && isFinite(c) && c > 0 && c < 200); // a bare numeric depth cell
+const refDepthText = c => typeof c === 'number' ? (c + 'm') : refNormDepth(c.trim());
+
+// Accept both day-first ("23 April 2007", "21-Oct-2025") and month-first ("Apr 23, 2007") dates.
+function refAsDate(c){
+  if(Object.prototype.toString.call(c) === '[object Date]' && !isNaN(c)) return formatDateDDMMYY(c);
+  if(typeof c === 'string'){
+    const t = c.trim();
+    if(/^\d{1,2}[-\/\s][A-Za-z]{3,9}\.?[-\/\s,]*\s*\d{2,4}$/.test(t)) return t;
+    if(/^[A-Za-z]{3,9}\.?\s+\d{1,2},?\s*\d{2,4}$/.test(t)) return t;
+  }
+  return null;
+}
+
+// Walk one grid of cells (a workbook sheet OR pasted text turned into rows) and record every
+// sample's date / borehole / depth into `map`. One source's blanks never erase another's values.
+function harvestReferenceRows(rows, sourceName, map){
+  const record = (id, fields)=>{
+    if(!map[id]) map[id] = {date:null, bh:null, depth:null, sheet:sourceName};
+    ['date','bh','depth'].forEach(k=>{ if(fields[k] != null && map[id][k] == null) map[id][k] = fields[k]; });
+  };
+
+  for(let r=0; r<rows.length; r++){
+    const row = rows[r];
+    if(!row) continue;
+    const idCols = [];
+    row.forEach((c, ci)=>{ if(typeof c === 'string' && SAMPLE_ID_RE.test(c.trim())) idCols.push(ci); });
+    if(!idCols.length) continue;
+
+    if(idCols.length >= 2){
+      // HORIZONTAL layout: a row of sample IDs with companion rows nearby.
+      let bhRow=null, depthRow=null, dateRow=null;
+      for(let k=1; k<=6 && r+k<rows.length; k++){
+        const cand = rows[r+k];
+        if(!cand) continue;
+        if(!dateRow && (cand.some(c=>typeof c==='string' && /sampling date/i.test(c)) || cand.some(c=>refAsDate(c)))) dateRow = cand;
+        if(!depthRow && (cand.some(c=>typeof c==='string' && /screen|interval|depth/i.test(c)) || cand.some(c=>typeof c==='string' && REF_DEPTH_RE.test(c.trim())))) depthRow = cand;
+        if(!bhRow && cand.some(c=>typeof c==='string' && BH_PREFIX_RE.test(c.trim()))) bhRow = cand;
+      }
+      idCols.forEach(ci=>{
+        const id = row[ci].trim();
+        const depthCell = depthRow ? depthRow[ci] : null;
+        record(id, {
+          date: dateRow ? refAsDate(dateRow[ci]) : null, // date-like cells only — never label text
+          bh: bhRow && typeof bhRow[ci]==='string' ? bhRow[ci] : null,
+          depth: depthCell != null && refIsDepth(depthCell) ? refDepthText(depthCell) : null,
+          sheet: sourceName
+        });
+      });
+    } else {
+      // VERTICAL layout: one record per row — the ID's own row carries its date/depth/name.
+      const ci = idCols[0];
+      const id = row[ci].trim();
+      let date=null, depth=null, bh=null;
+      row.forEach((c, k)=>{
+        if(k === ci || c == null || c === '') return;
+        if(!date){ const d = refAsDate(c); if(d){ date = d; return; } }
+        if(!depth && refIsDepth(c)){ depth = refDepthText(c); return; }
+        if(!bh && typeof c === 'string' && BH_PREFIX_RE.test(c.trim())) bh = c.trim();
+      });
+      record(id, {date, bh, depth, sheet: sourceName});
+    }
+  }
+}
+
+// However a depth was written in a reference source, it's normalized to two decimal
+// places on display — "0-0.6m" / "(0-0.6m)" -> "0.00-0.60m" — so the table always reads
+// consistently regardless of how loosely the source file was typed. Special wordings some
+// certificates use ("at 0.61m", "N/A") are left exactly as written rather than reformatted.
+function normalizeDepthDisplay(raw){
+  if(!raw) return raw;
+  const s = String(raw).trim();
+  if(/^at\s/i.test(s) || /^N\/A/i.test(s)) return s;
+  const stripped = s.replace(/^\(+|\)+$/g,'').trim();
+  const range = stripped.match(/^(-?\d+(?:\.\d+)?)\s*[-\u2013\u2014]\s*(-?\d+(?:\.\d+)?)\s*m?$/i);
+  if(range) return parseFloat(range[1]).toFixed(2) + '-' + parseFloat(range[2]).toFixed(2) + 'm';
+  const single = stripped.match(/^(-?\d+(?:\.\d+)?)\s*m?$/i);
+  if(single) return parseFloat(single[1]).toFixed(2) + 'm';
+  return stripped; // unrecognized format — left as-is rather than guessed at
+}
+
+// Simple two-column "Borehole -> Depth" lookup, for reference sources that give only a
+// borehole name and its sampling depth with no sample IDs at all — e.g. "BH1(MW) | (0-0.6m)".
+// A row is only used here when it carries NO sample ID, so this never collides with the
+// per-sample-ID lookup above; the two styles can even live in the same file. Handles both a
+// proper two-cell row (from an xlsx sheet or a well-split paste) and a freeform single-cell
+// line where the name and depth just sit next to each other in one string.
+const BH_DEPTH_FIND_RE = /\(?\s*\d+(?:\.\d+)?\s*[-\u2013\u2014]\s*\d+(?:\.\d+)?\s*m?\s*\)?|\(?\s*\d+(?:\.\d+)?\s*m\s*\)?/i;
+const SAMPLE_ID_ANYWHERE_RE = /\d{2}-\d{3,5}-\d+/;
+function harvestBhDepthRows(rows, map){
+  rows.forEach(row=>{
+    if(!row) return;
+    if(row.some(c=>typeof c==='string' && SAMPLE_ID_ANYWHERE_RE.test(c))) return;
+
+    if(row.length > 1){
+      let bh=null, depth=null;
+      row.forEach(c=>{
+        if(c==null || c==='') return;
+        if(!bh && typeof c==='string' && BH_PREFIX_RE.test(c.trim())) bh = c.trim();
+        if(!depth && refIsDepth(c)) depth = refDepthText(c);
+      });
+      if(bh && depth){
+        const key = normalizeBoreholeName(bh);
+        if(!map[key]) map[key] = normalizeDepthDisplay(depth);
+        return;
+      }
+    }
+
+    // Freeform fallback: everything before the depth match, trimmed of separator punctuation,
+    // is taken as the FULL borehole name (not just whatever BH_PREFIX_RE itself matches, which
+    // would truncate e.g. "BH1(MW)" down to "BH1").
+    const text = row.filter(c=>c!=null && c!=='').join(' ').trim();
+    if(!text) return;
+    const depthM = text.match(BH_DEPTH_FIND_RE);
+    if(!depthM) return;
+    const nameCandidate = text.slice(0, depthM.index).replace(/[|:,\-\s]+$/,'').trim();
+    if(nameCandidate && BH_PREFIX_RE.test(nameCandidate)){
+      const key = normalizeBoreholeName(nameCandidate);
+      if(!map[key]) map[key] = normalizeDepthDisplay(depthM[0]);
+    }
+  });
+}
+
+function parseDateWorkbook(arrayBuffer){
+  const wb = XLSX.read(arrayBuffer, {type:'array', cellDates:true});
+  const sampleMap = {};
+  const bhDepthMap = {};
+  wb.SheetNames.forEach(name=>{
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, raw:true});
+    harvestReferenceRows(rows, name, sampleMap);
+    harvestBhDepthRows(rows, bhDepthMap);
+  });
+  return {sampleMap, bhDepthMap};
+}
+
+// Parse dates / screen intervals pasted as free text (typically cells copied out of Excel,
+// which arrive tab-separated — but freeform "one line per sample" text works too).
+function parsePastedReference(text){
+  const sampleMap = {};
+  const bhDepthMap = {};
+  const lines = String(text||'').split(/\r\n|\r|\n/);
+  // grid pass: tab-separated (Excel copy), pipe-separated, or 2+ space-separated columns
+  const grid = lines.map(l=>{
+    if(l.includes('\t')) return l.split('\t').map(c=>c.trim());
+    if(l.includes('|')) return l.split('|').map(c=>c.trim());
+    return l.trim().split(/\s{2,}/).map(c=>c.trim());
+  });
+  harvestReferenceRows(grid, '(pasted)', sampleMap);
+  harvestBhDepthRows(grid, bhDepthMap);
+  // also try each RAW line as a single freeform cell — catches "BH1(MW) 0.61m" style text
+  // that has no tab/pipe/double-space to split on; harvestBhDepthRows's own freeform pass
+  // then pulls out the borehole name and depth from within the one string.
+  harvestBhDepthRows(lines.map(l=>[l]), bhDepthMap);
+  // freeform pass: a line holding exactly ONE sample id — dig its depth/date/name out by pattern
+  const ID_G = /\b\d{2}-\d{3,5}-\d+\b/g;
+  const DEPTH_G = /\b\d+(?:\.\d+)?\s*[-\u2013\u2014]\s*\d+(?:\.\d+)?\s*m?\b/;
+  lines.forEach(line=>{
+    const ids = line.match(ID_G);
+    if(!ids || ids.length !== 1) return;
+    const id = ids[0];
+    const rest = line.replace(id, ' ');
+    const depthM = rest.match(DEPTH_G);
+    const dateM = rest.match(/\d{1,2}[-\/\s][A-Za-z]{3,9}\.?[-\/\s,]*\s*\d{2,4}|[A-Za-z]{3,9}\.?\s+\d{1,2},?\s*\d{2,4}/);
+    const bhM = rest.match(BH_PREFIX_RE) || rest.match(/\b(BH|TP|MW|EMW)\s?\d+\S*/i);
+    if(!sampleMap[id]) sampleMap[id] = {date:null, bh:null, depth:null, sheet:'(pasted)'};
+    if(depthM && sampleMap[id].depth == null) sampleMap[id].depth = refNormDepth(depthM[0]);
+    if(dateM && sampleMap[id].date == null) sampleMap[id].date = dateM[0].trim();
+    if(bhM && sampleMap[id].bh == null) sampleMap[id].bh = bhM[0].trim();
+  });
+  return {sampleMap, bhDepthMap};
+}
+
+// The map handed to processing: the Excel reference file, with pasted-text values WINNING
+// wherever both provide a field (pasting is the user's deliberate correction).
+function getReferenceMap(){
+  const xlsx = state.xlsxDates || {sampleMap:{}, bhDepthMap:{}};
+  const pasted = state.pastedRef || {sampleMap:{}, bhDepthMap:{}};
+  const sampleMap = JSON.parse(JSON.stringify(xlsx.sampleMap || {}));
+  Object.keys(pasted.sampleMap || {}).forEach(id=>{
+    if(!sampleMap[id]) sampleMap[id] = {date:null, bh:null, depth:null, sheet:'(pasted)'};
+    ['date','bh','depth'].forEach(k=>{ if(pasted.sampleMap[id][k] != null) sampleMap[id][k] = pasted.sampleMap[id][k]; });
+  });
+  // Borehole-log-computed screen depths only fill in where no xlsx/pasted value already
+  // exists for that well — manually supplied reference data always wins over a computed one.
+  const logDepths = {};
+  (state.boreholeLogEntries||[]).forEach(e=>{
+    if(e.screenLen != null){
+      const key = normalizeBoreholeName(e.bh);
+      logDepths[key] = normalizeDepthDisplay((e.bottom - e.screenLen).toFixed(2) + '-' + e.bottom.toFixed(2) + 'm');
+    }
+  });
+  const bhDepthMap = Object.assign({}, logDepths, xlsx.bhDepthMap || {}, pasted.bhDepthMap || {}); // pasted > xlsx > log
+  return (Object.keys(sampleMap).length || Object.keys(bhDepthMap).length) ? {sampleMap, bhDepthMap} : null;
+}
+
+function refSummary(ref){
+  if(!ref) return 'no reference data';
+  const sIds = Object.keys(ref.sampleMap || {});
+  const bIds = Object.keys(ref.bhDepthMap || {});
+  const d = sIds.filter(id=>ref.sampleMap[id].date).length;
+  const p = sIds.filter(id=>ref.sampleMap[id].depth).length;
+  const parts = [sIds.length + ' samples (' + d + ' with dates, ' + p + ' with depths)'];
+  if(bIds.length) parts.push(bIds.length + ' boreholes with a depth lookup');
+  return parts.join(', ');
+}
+
+/* ---------- main processing ---------- */
+function processCertificate(pages, dateMap){
+  const allRows = pages.flat().map(r => typeof r === 'string' ? r : r.text);
+  const debugLines = [];
+
+  const matrixOverride = document.getElementById('matrixSelect').value;
+  let matrix = 'SOIL';
+  if(matrixOverride === 'auto'){
+    const isWater = allRows.some(r=>/Water Sample\(s\)/i.test(r)) || allRows.some(r=>/\bin Water\b/i.test(r)) || allRows.some(r=>/screen interval/i.test(r));
+    matrix = isWater ? 'GW' : 'SOIL';
+  } else {
+    matrix = matrixOverride;
+  }
+  const texturePref = document.getElementById('textureSelect').value;
+
+  const ctx = extractMeta(allRows);
+  ctx.matrix = matrix;
+  ctx.texturePref = texturePref;
+  ctx.dateMapRef = dateMap || null;
+  ctx.tableLabels = detectTableLabels(allRows);
+
+  const samples = {};
+
+  // Borehole names / depths are only ever taken from rows belonging to the SAME sample-ID
+  // group (the header block directly above them). Nothing is carried across pages or groups,
+  // so a page whose header fails to parse can never inherit another page's borehole names.
+  pages.forEach((rows)=>{
+    let group = null;   // {ids, idPositions, bh, depth} — current sample-ID header block on this page
+    let localCat = null;
+
+    const flushGroup = ()=>{
+      if(!group) return;
+      group.ids.forEach((id, i)=>{
+        if(group.bh && group.bh[i]) samples[id].bh = cleanBhPart(group.bh[i], i === group.bh.length - 1);
+        if(group.depth && group.depth[i]) samples[id].depth = group.depth[i];
+      });
+      group = null;
+    };
+
+    rows.forEach(rowObj=>{
+      // Rows are {text, items}. Older test fixtures may hand us bare strings — tolerate both.
+      const row      = typeof rowObj === 'string' ? rowObj : rowObj.text;
+      const rowItems = typeof rowObj === 'string' ? []     : rowObj.items;
+      const tokens = row.split(' ');
+
+      const idRow = extractIdRow(tokens);
+      if(idRow){
+        flushGroup(); // a new header block starts — commit the previous one first
+        // Record x-position of every ID so we can match column-aligned markers (Duplicate) later.
+        const idPositions = {};
+        idRow.forEach(id=>{
+          const it = rowItems.find(item => item.str === id);
+          if(it) idPositions[id] = it.x;
+        });
+        group = {ids: idRow, idPositions, bh: null, depth: null};
+        idRow.forEach(id=>{
+          if(!samples[id]) samples[id] = {bh:null, depth:null, isDup:false, categories:{}, exceed:{}};
+        });
+        return;
+      }
+
+      // Standalone "Duplicate" marker: assign it to the sample whose column x it sits under.
+      if(group && /^Duplicate\.?$/i.test(row)){
+        const dupItem = rowItems.find(it => /Duplicate/i.test(it.str)) || rowItems[0];
+        if(dupItem && dupItem.x != null){
+          let bestId = null, bestDist = Infinity;
+          for(const id of group.ids){
+            const px = group.idPositions[id];
+            if(px == null) continue;
+            const d = Math.abs(px - dupItem.x);
+            if(d < bestDist){ bestDist = d; bestId = id; }
+          }
+          if(bestId) samples[bestId].isDup = true;
+        }
+        return;
+      }
+
+      if(/^QA\/QC Report/i.test(row)){
+        flushGroup(); // QA/QC rows below must never attach to the data group above
+        return;
+      }
+
+      if(group && !group.bh && !/Sampling Date/i.test(row)){
+        const cleanRow = cleanBhRow(row);
+        if(matchRowPrefixPattern(cleanRow)){
+          group.bh = splitAlignedBest(cleanRow, group.ids.length);
+          // (Dup) suffix inside the borehole label itself is also a duplicate marker.
+          if(group.bh){
+            group.bh.forEach((label, i)=>{
+              if(DUP_TAG_RE.test(label)) samples[group.ids[i]].isDup = true;
+            });
+          }
+          return;
+        }
+      }
+      {
+        // A depth row is a short row made mostly of depth tokens ("0.00-0.30m 0.30-0.60m R/P/I").
+        // The majority test keeps prose that merely MENTIONS a depth — e.g. the Table 9 footnote
+        // "…within 30m of a water body…" repeated on every page — from being mistaken for one.
+        // PDF extraction sometimes splits one visual depth row into two text rows (the first
+        // half on one line, the rest on the next), so fragments ACCUMULATE until every sample
+        // in the group has a depth — a later fragment must never overwrite an earlier one.
+        // Depths come as plain tokens ("0.00-0.60m") or in the "(at 0.61m)" wording some
+        // certificates use — the latter is parsed as a unit and displayed exactly as written.
+        const atMatches = [...row.matchAll(/\(?\s*at\s+(\d+(?:\.\d+)?\s*m)\s*\)?/gi)];
+        const depthTokens = atMatches.length
+          ? atMatches.map(mm=>'at ' + mm[1].replace(/\s+/g,''))
+          : tokens.map(t=>t.replace(/^\(+|\)+$/g,'')).filter(t=>DEPTH_RE.test(t));
+        const mostlyDepth = depthTokens.length > 0 &&
+          (atMatches.length ? atMatches.length * 3 + 1 >= tokens.length : depthTokens.length >= tokens.length * 0.5);
+        if(group && mostlyDepth){
+          if(!group.depth && depthTokens.length >= Math.min(2, group.ids.length)){
+            group.depth = depthTokens.slice(0, group.ids.length);
+            return;
+          }
+          if(group.depth && group.depth.length < group.ids.length){
+            group.depth = group.depth.concat(depthTokens).slice(0, group.ids.length);
+            return;
+          }
+        }
+      }
+      // Fisher sometimes reports individual regulated metals as their own mini-section
+      // instead of under the generic "Metals in Soil" table.  Treat Mercury and Chromium (VI)
+      // as members of the Metals category so they are preserved in the tally and AutoCAD exports.
+      // The heading and values may be on the SAME row (Mercury) or split across two rows
+      // ("Chromium (VI) in Soil" followed by "Chromium (VI) <0.2 ...").
+      const specialMetal = row.match(/^\s*(Mercury|Chromium\s*\(VI\))\s+in\s+(?:Soil|Water)\b\s*(.*)$/i);
+      if(specialMetal){
+        localCat = 'Metals';
+        const paramName = specialMetal[1].replace(/\s+/g,' ').trim();
+        const rest = (specialMetal[2] || '').trim();
+        if(group && rest){
+          parseParamRow(paramName + ' ' + rest, group.ids, 'Metals', samples, texturePref, debugLines, ctx.tableLabels);
+        }
+        return;
+      }
+
+      const secMatch = SECTION_MAP.find(s=>s.re.test(row));
+      if(secMatch){
+        localCat = secMatch.key;
+        const stripRe = COMBINED_ROW_STRIP[secMatch.key];
+        if(stripRe && group){
+          const rest = row.replace(stripRe, '').trim();
+          if(rest) parseParamRow(secMatch.key + ' ' + rest, group.ids, secMatch.key, samples, texturePref, debugLines, ctx.tableLabels);
+        }
+        return;
+      }
+
+      if(/^pH \(pH unit\)/i.test(row)){
+        parsePHRow(row, group ? group.ids : null, samples, debugLines);
+        return;
+      }
+      if(group && localCat){
+        parseParamRow(row, group.ids, localCat, samples, texturePref, debugLines, ctx.tableLabels);
+      }
+    });
+
+    flushGroup();
+  });
+
+  ctx._debugLines = debugLines;
+  return {samples, ctx};
+}
+
+/* ---------- combine multiple lab-report files into one dataset ---------- */
+// Sample IDs already encode their lab job number ("{jobNo}-{n}"), so merging different files'
+// sample maps together is collision-free as long as each file's own job number is unique.
+// Each sample is tagged with resolved per-round info (_date, _depth, _tableLabels, source file)
+// BEFORE merging, using that file's own ctx — this keeps every round self-describing once the
+// samples live together in one combined map, so grouping/rendering never needs per-file ctx again.
+function mergeCertificates(perFile, bhDepthMap){
+  const samples = {};
+  const tableLabelsOrder = [];
+  const rounds = [];
+
+  perFile.forEach(({file, result})=>{
+    const {samples: fileSamples, ctx} = result;
+    ctx.tableLabels.forEach(l=>{ if(!tableLabelsOrder.includes(l)) tableLabelsOrder.push(l); });
+    rounds.push({
+      jobNo: ctx.jobNo,
+      date: ctx.dateSampledSingle || ctx.dateRangeRaw,
+      fileName: file.name,
+      projectName: ctx.projectName,
+      location: ctx.location
+    });
+    Object.keys(fileSamples).forEach(id=>{
+      const s = fileSamples[id];
+      s._jobNo = ctx.jobNo;
+      s._fileName = file.name;
+      s._date = s.date || dateMapLookup(id, ctx);
+      // Depth resolution, most specific source first: the certificate's own text, then the
+      // per-sample-ID reference lookup, then — new — a simple per-borehole-NAME reference
+      // lookup (for sources that only give "Borehole | Depth" with no sample IDs at all).
+      // A drilling/borehole log usually names the well by its bare ID ("BH1"), while the lab
+      // certificate adds a "(MW)"/"(GW)" monitoring-well suffix ("BH1 (MW)") — the fallback
+      // key strips that suffix so the two still match. Whatever the source, the result is
+      // normalized to two decimal places for display.
+      const bhKeyFull = normalizeBoreholeName((s.bh||'').replace(DUP_TAG_RE,' ').replace(/\s+/g,' ').trim());
+      const bhKeyBare = normalizeBoreholeName((s.bh||'').replace(DUP_TAG_RE,' ').replace(/\s*\([^)]*\)\s*$/,'').replace(/\s+/g,' ').trim());
+      const rawDepth = s.depth
+        || (ctx.dateMapRef && ctx.dateMapRef[id] && ctx.dateMapRef[id].depth)
+        || (bhDepthMap && (bhDepthMap[bhKeyFull] || bhDepthMap[bhKeyBare]))
+        || null;
+      s._depth = normalizeDepthDisplay(rawDepth);
+      s._tableLabels = ctx.tableLabels.slice();
+      samples[id] = s;
+    });
+  });
+
+  const first = perFile[0].result.ctx;
+  const uniq = arr => [...new Set(arr.filter(Boolean))];
+  const projectNames = uniq(rounds.map(r=>r.projectName));
+  const locations = uniq(rounds.map(r=>r.location));
+
+  const ctx = {
+    matrix: first.matrix,
+    texturePref: first.texturePref,
+    dateMapRef: first.dateMapRef,
+    tableLabels: tableLabelsOrder,
+    projectName: projectNames.join(' / ') || '',
+    projectId: uniq(perFile.map(p=>p.result.ctx.projectId)).join(' / ') || '',
+    location: locations.join(' / ') || '',
+    isMultiFile: perFile.length > 1,
+    rounds
+  };
+  return {samples, ctx};
+}
+
+// Best-effort chronological key for sorting rounds within a combined borehole group.
+// Handles both "12-May-2026" (from the PDF header) and "13 April 2007" (from the xlsx
+// reference, via formatDateDDMMYY) — exact ordering only matters for multi-round display,
+// never for exceedance detection, so an unparseable date just falls back to upload order.
+function parseDateLoose(str){
+  if(!str) return null;
+  let d = new Date(str.replace(/-/g, ' ').trim());
+  if(isNaN(d)) d = new Date(str);
+  if(isNaN(d)) return null;
+  if(d.getFullYear() < 100) d.setFullYear(d.getFullYear() + 2000);
+  return d.getTime();
+}
+
+function extractMeta(allRows){
+  const jobNoM = (allRows.find(r=>/F\.E\. Job #:/i.test(r))||'').match(/Job #:\s*([\d-]+)/i);
+  const dateM = (allRows.find(r=>/Date Sampled:/i.test(r))||'').match(/Date Sampled:\s*(.+)/i);
+  const projNameM = (allRows.find(r=>/Project Name:/i.test(r))||'').match(/Project Name:\s*(.+)/i);
+  const projIdM = (allRows.find(r=>/Project ID:/i.test(r))||'').match(/Project ID:\s*(.+)/i);
+  const locIdx = allRows.findIndex(r=>/Location:/i.test(r));
+  let location = '';
+  if(locIdx >= 0){
+    const locM = allRows[locIdx].match(/Location:\s*(.+)/i);
+    location = locM ? locM[1].trim() : '';
+    const next = allRows[locIdx+1];
+    if(next && !/[A-Za-z]+\.?\s*:/.test(next) && next.length < 40){
+      location += ', ' + next.trim();
+    }
+  }
+  // If "Date Sampled:" holds a SINGLE day-month-year (e.g. "21-Oct-2025", "21 Oct 2025"),
+  // use it as the default sampling date for all samples. Ranges or comma-separated dates
+  // (e.g. "21-23 Oct 2025", "21-Oct-2025, 23-Oct-2025") don't qualify — those still need
+  // the per-sample Sampling Date reference file to disambiguate.
+  const dateRaw = dateM ? dateM[1].trim() : null;
+  const SINGLE_DATE_RE = /^\d{1,2}[-\/\s][A-Za-z]{3,9}[-\/\s]\d{2,4}$/;
+  const dateSampledSingle = (dateRaw && SINGLE_DATE_RE.test(dateRaw)) ? dateRaw : null;
+  return {
+    jobNo: jobNoM ? jobNoM[1] : '(unknown)',
+    dateRangeRaw: dateRaw,
+    dateSampledSingle,
+    projectName: projNameM ? projNameM[1].trim() : '',
+    projectId: projIdM ? projIdM[1].trim() : '',
+    location
+  };
+}
+
+function splitAligned(row, n, prefixRe){
+  const parts = [];
+  const src = prefixRe.source.replace(/^\^/, '');
+  const re = new RegExp(src, 'gi');
+  let m, idxs=[];
+  while((m = re.exec(row))){ idxs.push(m.index); }
+  if(idxs.length === 0) return null;
+  for(let i=0;i<idxs.length;i++){
+    const end = i+1<idxs.length ? idxs[i+1] : row.length;
+    parts.push(row.slice(idxs[i], end).trim());
+  }
+  return parts;
+}
+
+// Names on one row may mix prefixes (e.g. "BH108 (MW) BH112 (MW) EMW6 BH122 (MW)").
+// Splitting only on the row's leading prefix would glue "EMW6" onto its neighbour, while
+// always splitting on every prefix would wrongly break names like "BH 201 SS2".
+// So: try the leading-prefix split first; if the part count doesn't match the number of
+// sample IDs, try splitting on ALL prefixes combined; keep whichever count matches n.
+function splitAlignedBest(row, n){
+  const startPattern = matchRowPrefixPattern(row);
+  const byStart = startPattern ? splitAligned(row, n, startPattern) : null;
+  if(byStart && byStart.length === n) return byStart;
+  const combined = new RegExp('(?:' + ROW_PREFIX_PATTERNS.map(p=>p.source).join('|') + ')', 'i');
+  const byAll = splitAligned(row, n, combined);
+  if(byAll && byAll.length === n) return byAll;
+  return byStart || byAll;
+}
+
+function parseParamRow(row, ids, category, samples, texturePref, debugLines, tableLabels){
+  const labels = (tableLabels && tableLabels.length) ? tableLabels : ['Table 3','Table 8'];
+  const numCols = labels.length;
+  const tokens = row.split(' ');
+  const n = ids.length;
+  if(tokens.length < n + numCols) return;
+
+  const isBracket = t => /^\(.*\)$/.test(t);
+  // standards may use thousands separators, e.g. "1,900" or "20,000"
+  const isPlainStdNum = t => /^\d[\d,]*(\.\d+)?$/.test(t);
+  const num = t => t === null || t === undefined ? NaN : parseFloat(String(t).replace(/[(),]/g,''));
+
+  // Scan from the right, collecting plain standard-value token positions, skipping bracket tokens.
+  const plainPositions = [];
+  let i = tokens.length - 1;
+  for(; i >= 0 && plainPositions.length < numCols; i--){
+    if(isBracket(tokens[i])) continue;
+    if(isPlainStdNum(tokens[i])){ plainPositions.push(i); continue; }
+    break;
+  }
+  if(plainPositions.length < numCols) return;
+  plainPositions.reverse(); // left-to-right = column order
+
+  const claimed = new Set();
+  const cols = plainPositions.map(idx=>{
+    let bracket = null;
+    if(isBracket(tokens[idx-1]) && !claimed.has(idx-1)){ bracket = tokens[idx-1]; claimed.add(idx-1); }
+    else if(isBracket(tokens[idx+1]) && !claimed.has(idx+1)){ bracket = tokens[idx+1]; claimed.add(idx+1); }
+    return {idx, value: tokens[idx], bracket};
+  });
+
+  const leftmostStdIdx = Math.min(...plainPositions, ...[...claimed]);
+  const valuesEnd = leftmostStdIdx;
+  const valuesStart = valuesEnd - n;
+  if(valuesStart < 0) return;
+  const values = tokens.slice(valuesStart, valuesEnd);
+  const name = tokens.slice(0, valuesStart).join(' ').trim();
+  if(!name) return;
+
+  const colInfo = cols.map((c, ci)=>{
+    const plainNum = num(c.value);
+    const bracketNum = c.bracket !== null ? num(c.bracket) : null;
+    const applied = (texturePref === 'bracket' && bracketNum !== null && !isNaN(bracketNum)) ? bracketNum : plainNum;
+    return {label: labels[ci], applied, plainNum, bracketNum};
+  });
+
+  values.forEach((valRaw, vi)=>{
+    const id = ids[vi];
+    if(!id || !samples[id]) return;
+    samples[id].categories[category] = true;
+    const isND = /^</.test(valRaw);
+    const val = parseFloat(valRaw.replace(/[<,]/g,''));
+    if(isNaN(val) || isND) return;
+    colInfo.forEach(c=>{
+      if(!isNaN(c.applied) && val > c.applied){
+        if(!samples[id].exceed[c.label]) samples[id].exceed[c.label] = {};
+        pushExceed(samples[id].exceed[c.label], category, name, val, c.applied);
+      }
+    });
+  });
+
+  debugLines.push(`[${category}] ${name} :: n=${n} cols=${colInfo.map(c=>`${c.label}=${c.plainNum}${c.bracketNum!==null?'('+c.bracketNum+')':''}`).join(', ')}`);
+}
+
+function parsePHRow(row, ids, samples, debugLines){
+  const m = row.match(/pH \(pH unit\)\s+(.*)/i);
+  if(!m || !ids) return;
+  const rest = m[1].split(' ');
+  const bracketIdx = rest.findIndex(t=>/^\(.*\)$/.test(t));
+  const values = bracketIdx>=0 ? rest.slice(0, bracketIdx) : rest.slice(0, ids.length);
+  values.forEach((v,i)=>{
+    const id = ids[i];
+    if(!id || !samples[id]) return;
+    samples[id].categories['pH'] = true;
+  });
+  debugLines.push(`[pH] values=${values.join(',')}`);
+}
+
+function pushExceed(bucket, category, name, val, std){
+  // Same parameter + same measured value already recorded for this standards label (possibly
+  // under another analysis package — e.g. Xylenes appears in both the VOC scan and the BTEX
+  // package)? Then this is the same physical result reported twice; keep only the first.
+  for(const cat of Object.keys(bucket)){
+    if(bucket[cat].some(e=>e.name === name && e.val === val)) return;
+  }
+  if(!bucket[category]) bucket[category] = [];
+  bucket[category].push({name, val, std});
+}
+
+/* ---------- report rendering (one styled tally table per detected standards column) ---------- */
+function renderReports({samples, ctx}, wrap){
+  wrap = wrap || document.getElementById('reportWrap');
+  const boreholes = buildBoreholeHierarchy(samples);
+  const labelsToRender = ctx.visibleTables
+    ? ctx.tableLabels.filter(l=>ctx.visibleTables.has(l))
+    : ctx.tableLabels;
+  let appended = 0;
+  labelsToRender.forEach(label=>{
+    const el = buildBoreholeReportEl(boreholes, samples, ctx, label);
+    if(el){
+      if(appended > 0){
+        const theme = (ctx.tableColors && ctx.tableColors[label]) || themeFor(label);
+        wrap.appendChild(buildReportDivider(label, theme));
+      }
+      wrap.appendChild(el);
+      appended++;
+    }
+  });
+  return appended;
+}
+
+let _copyHandlerAttached = false;
+function ensureCopyHandler(){
+  if(_copyHandlerAttached) return;
+  _copyHandlerAttached = true;
+  const wrap = document.getElementById('reportWrap');
+  wrap.addEventListener('click', (e)=>{
+    // Block-copy / full-table-copy button (must be checked before cell, since the button
+    // lives inside a data-copyable cell — button click shouldn't also copy the cell).
+    const btn = e.target.closest('.copy-btn');
+    if(btn && btn.dataset.renameBh != null){
+      e.stopPropagation();
+      const oldKey = btn.dataset.renameBh;
+      const current = btn.dataset.renameCurrent || oldKey;
+      const next = prompt('Rename this borehole. Any other borehole renamed to the same name will be shown together with it.', current);
+      if(next && next.trim() && next.trim() !== current){
+        state.boreholeAliases[oldKey] = next.trim();
+        saveProjectState();
+        if(state.rerender) state.rerender();
+      }
+      return;
+    }
+    if(btn && btn.dataset.csvExport){
+      e.stopPropagation();
+      const csv = (window._csvExports||{})[btn.dataset.csvExport];
+      if(csv) downloadTextFile(csv.name, csv.text);
+      return;
+    }
+    if(btn){
+      e.stopPropagation();
+      const key = btn.dataset.copyBlock;
+      const payload = key ? (window._copyBlocks||{})[key] : null;
+      if(!payload) return;
+      const tsv = typeof payload === 'string' ? payload : payload.tsv;
+      const htmlPay = typeof payload === 'string' ? null : payload.html;
+      const flash = ()=>{
+        const orig = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = '✓ Copied';
+        setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML = orig; }, 1100);
+      };
+      // Write BOTH flavours: rich HTML (Excel/Word paste a coloured table) and plain TSV
+      // (AutoCAD, text editors). Falls back to plain text on older browsers.
+      if(htmlPay && navigator.clipboard.write && window.ClipboardItem){
+        navigator.clipboard.write([new ClipboardItem({
+          'text/plain': new Blob([tsv], {type:'text/plain'}),
+          'text/html':  new Blob([htmlPay], {type:'text/html'})
+        })]).then(flash).catch(()=> navigator.clipboard.writeText(tsv).then(flash).catch(()=>{}));
+      } else {
+        navigator.clipboard.writeText(tsv).then(flash).catch(()=>{});
+      }
+      return;
+    }
+    // Cell click — copy just this cell's value.
+    const cell = e.target.closest('td[data-copyable]');
+    if(cell){
+      const text = (cell.getAttribute('data-copy') || cell.textContent || '').trim();
+      if(!text) return;
+      navigator.clipboard.writeText(text).then(()=>{
+        cell.classList.add('copied');
+        setTimeout(()=>cell.classList.remove('copied'), 700);
+      }).catch(()=>{});
+    }
+  });
+}
+
+/* =====================================================================================
+   BOREHOLE-CENTRIC ARCHITECTURE
+   -------------------------------------------------------------------------------------
+   The application's primary object is the physical Borehole, not the lab Sample ID.
+   Hierarchy:  Borehole -> Sampling Round (by date) -> Sample -> Categories -> Exceedances.
+
+   This is the ONE grouping/rendering pipeline for every report, regardless of how many
+   lab-report files were uploaded — there is no separate "single file" vs "multi file"
+   code path to keep in sync. A single uploaded file simply produces Boreholes that each
+   happen to have one Sampling Round; multiple files (different years / job numbers) for
+   the same site naturally add more rounds under the SAME Borehole instead of creating a
+   new report section for it.
+   ===================================================================================== */
+
+/* EC, SAR and pH are reported together as the ORP package */
+const ORP_MEMBERS = ["EC","SAR","pH"];
+
+// Convert the parser's fine-grained keys into the categories users see. EC, SAR and pH
+// remain separate internally so their results can be parsed accurately, but they have one
+// parent category everywhere in the UI and exports.
+function categoryGroups(cats){
+  const groups = [];
+  const orp = cats.filter(c=>ORP_MEMBERS.includes(c));
+  let orpAdded = false;
+  cats.forEach(c=>{
+    if(ORP_MEMBERS.includes(c)){
+      if(!orpAdded){
+        groups.push({key:'ORP', label:`ORP (${orp.map(k=>DISPLAY_NAME[k]||k).join(', ')})`, members:orp});
+        orpAdded = true;
+      }
+      return;
+    }
+    groups.push({key:c, label:DISPLAY_NAME[c]||c, members:[c]});
+  });
+  return groups;
+}
+
+function formatCatList(cats, excCats){
+  return categoryGroups(cats).map(group=>{
+    if(group.key !== 'ORP') return group.members.some(c=>excCats.includes(c)) ? `<b class="exc">${group.label}</b>` : group.label;
+    const inner = group.members.map(c=>{
+      const lbl = DISPLAY_NAME[c] || c;
+      return excCats.includes(c) ? `<b class="exc">${lbl}</b>` : lbl;
+    }).join(', ');
+    return group.members.some(c=>excCats.includes(c)) ? `<b class="exc">ORP</b> (${inner})` : `ORP (${inner})`;
+  }).join(', ');
+}
+
+function formatFlagList(excCats){
+  return categoryGroups(excCats).map(group=>group.label).join(', ');
+}
+
+// Friendly DISPLAY form only (never used for grouping/dedup): drops the whitespace
+// between a prefix like BH / MW / EMW / SS and its number, so "BH 7" -> "BH7",
+// "SS 1 Floor" -> "SS1 Floor", "MW 25-1" -> "MW25-1".
+function normalizeBhLabel(s){
+  if(!s) return s;
+  return s
+    .replace(/\bGrab\s*Sample\s*#?\s*(\d+)/gi, 'GS$1')  // "Grab Sample #1" -> "GS1"
+    .replace(/\bGS[\s-]+(\d)/gi, 'GS$1')                 // "GS-1" / "GS 1" -> "GS1"
+    .replace(/\b(BH|TP|MW|EMW|SS|SP)\s+(\d)/gi, '$1$2')
+    .replace(/\s+/g,' ').trim();
+}
+
+// Labs spell the duplicate tag many ways: "(Dup)", "(Dupe)", "(Duplicate)",
+// "(Field Duplicate)", "(Filed Duplicate)" — all mark the same thing.
+
+
+/* ---- per-borehole CSV export (for the office's AutoCAD reader) ----
+   Format: header "BH  Date  SampleID  Depth  Analyses  Result", one row per sample,
+   TAB-delimited — the Analyses field itself contains commas ("Metals, PAH"), so tabs
+   are the only delimiter that keeps the columns unambiguous for a simple line reader. */
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtCsvDate(str){
+  const t = parseDateLoose(str);
+  if(t == null) return str || '';
+  const d = new Date(t);
+  return d.getUTCDate() + '-' + MONTH_ABBR[d.getUTCMonth()] + '-' + String(d.getUTCFullYear()).slice(-2);
+}
+function safeFileName(s){ return String(s).replace(/[^\w.-]+/g,'_').replace(/^_+|_+$/g,''); }
+function downloadTextFile(name, text){
+  const blob = new Blob([text], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 400);
+}
+
+/* ---- AutoCAD CSV export (two modes, per the office LISP spec) ----
+   Real, comma-delimited, quoted-when-needed CSV — never tabs, never asterisks, never a
+   combined "value>standard" string. Two shapes only, never mixed:
+     Summary:  BH,Date,SampleID,Depth,Analyses,ExceededGroups,ComplianceText  (1 row/sample)
+     Detailed: BH,Date,SampleID,Depth,Analyses,ExceededGroup,Parameter,ResultValue,
+               StandardValue,ComplianceText  (1 row per exceeded parameter, or 1 blank row
+               with ComplianceText when the sample has no exceedance) */
+function csvEscape(v){
+  const s = v == null ? '' : String(v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function csvRow(fields){ return fields.map(csvEscape).join(','); }
+
+// Lab-side category keys map to the plain group names the AutoCAD LISP expects
+// (e.g. internal "VOCs"/"PCBs" -> "VOC"/"PCB"). EC, SAR and pH are exported under
+// their single parent category, ORP.
+const CSV_GROUP_NAME = {
+  Metals:'Metals', VOCs:'VOC', BTEX:'BTEX', 'PHC(F1-F4)':'PHCs (F1-F4)',
+  PAH:'PAH', PCBs:'PCB', EC:'ORP', SAR:'ORP', pH:'ORP',
+  Chlorophenols:'Chlorophenols', 'OC Pesticides':'OC Pesticides'
+};
+
+// Keep PHC parameter labels compact in every user-facing/exported output.
+// The certificate may print labels such as "F2 (C10 - C16)", "F3 (C16 - C34)",
+// "F4 (C34-C50)" or "F4G (> C50)".  For the tally/clipboard/CSV output,
+// only the canonical fraction name is needed: F1, F2, F3 or F4.
+function outputParameterName(name, category){
+  const raw = String(name || '').trim();
+  if(category === 'PHC(F1-F4)'){
+    // Accept Fisher variants such as:
+    // F1-BTEX (C6-C10), F2 (C10-C16), F3 (C16-C34), F4 (C34-C50), F4G (>C50).
+    // Output only the canonical fraction label requested for tables/clipboard/CSV.
+    const m = raw.match(/^F\s*([1-4])(?:G)?(?=\s|\(|-|$)/i);
+    if(m) return 'F' + m[1];
+  }
+  return raw;
+}
+
+/* Colours used in the CLIPBOARD copy of a report (inline styles — Excel/Word keep them).
+   Pasting straight into Excel or Word gives the coloured table; AutoCAD itself only takes
+   plain text from a browser, so the CAD route is: paste into Excel, then in AutoCAD use
+   Paste Special -> AutoCAD Entities to get a native, coloured table. */
+const THEME_CLIP = {
+  pink:   {head:'#F2DBE4', headText:'#5C2438', round:'#F8EBF0', roundText:'#6B3348'},
+  blue:   {head:'#DBE7F2', headText:'#1F3A55', round:'#EBF2F9', roundText:'#2D4A68'},
+  green:  {head:'#DCEBE1', headText:'#1F4A2C', round:'#ECF4EE', roundText:'#2E553B'},
+  amber:  {head:'#F0E3CA', headText:'#54401A', round:'#F6EFE0', roundText:'#63501F'},
+  purple: {head:'#E6DBF1', headText:'#3D2559', round:'#F1EBF8', roundText:'#4D3369'},
+  teal:   {head:'#D6E9E9', headText:'#174A4A', round:'#E9F2F2', roundText:'#265656'},
+  neutral:{head:'#E1E7F0', headText:'#1A2B45', round:'#EEF1F6', roundText:'#33475B'}
+};
+const CLIP_TD = 'border:1px solid #999;padding:3px 8px;font-family:Arial;font-size:10pt;';
+function clipWrap(rowsHtml){
+  return '<table border="1" style="border-collapse:collapse;">' + rowsHtml + '</table>';
+}
+// Solid theme colours for the between-reports divider — the same hues as each theme's
+// .report-tablebadge in the stylesheet, so the divider chip and the card it leads into
+// always visually agree.
+const THEME_SOLID = {
+  pink:'#c25b7f', blue:'#4a7fb5', green:'#4d9163', amber:'#b3893a',
+  purple:'#7e5aab', teal:'#3d8b8b', neutral:'#5c6673'
+};
+// A clearly perceptible break between two report cards — e.g. leaving Table 3's results
+// and entering Table 9's — so scrolling past it is unmistakable, not just a subtle colour
+// shift between cards.
+function buildReportDivider(label, theme){
+  const color = THEME_SOLID[theme] || THEME_SOLID.neutral;
+  const div = document.createElement('div');
+  div.className = 'report-divider';
+  div.innerHTML =
+    `<span class="rd-line" style="background:linear-gradient(90deg, transparent, ${color} 15%, ${color} 85%, transparent)"></span>` +
+    `<span class="rd-chip" style="background:${color};">▾ Now viewing ${esc(label)}</span>` +
+    `<span class="rd-line" style="background:linear-gradient(90deg, transparent, ${color} 15%, ${color} 85%, transparent)"></span>`;
+  return div;
+}
+// Generic fallback: turn TSV rows into a plain bordered clipboard table (first row shaded).
+function tsvRowsToClipHtml(rows, theme){
+  const c = THEME_CLIP[theme] || THEME_CLIP.neutral;
+  return clipWrap(rows.map((r,i)=>{
+    const style = i===0 ? CLIP_TD+`background:${c.head};color:${c.headText};font-weight:bold;` : CLIP_TD;
+    return '<tr>'+r.map(x=>`<td style="${style}">${esc(String(x))}</td>`).join('')+'</tr>';
+  }).join(''));
+}
+
+const DUP_TAG_RE = /\s*\(\s*(?:Field\s+|Filed\s+)?Dup(?:e|licate)?\.?\s*\)\s*/i;
+
+function isSampleDup(s){
+  return !!(s.isDup || DUP_TAG_RE.test(s.bh || ''));
+}
+
+// ---- Canonical Borehole identity ---------------------------------------------------
+// This is the GROUPING KEY every physical Borehole is identified by, used to guarantee
+// one Borehole never produces two report sections even when it was sampled across many
+// different lab-report files. Deliberately narrow — it performs ONLY:
+//   1. trim leading/trailing whitespace
+//   2. collapse internal whitespace runs to a single space
+//   3. uppercase
+//   4. strip a trailing "SS" (soil-sample) suffix, with an optional trailing digit —
+//      e.g. "BH205 SS2", "BH205SS2", "BH205 SS", "BH205SS" all normalize to "BH205"
+// It never collapses spacing between a prefix and its number, never touches hyphens or
+// letter suffixes, and never renames a Borehole — those are left exactly as extracted
+// so two genuinely different naming conventions are never silently merged into one.
+function normalizeBoreholeName(raw){
+  if(!raw) return '';
+  let s = String(raw).trim().replace(/\s+/g, ' ').toUpperCase();
+  // Alias: labs write surface grabs as "Grab Sample #1" on certificates but "GS1"/"GS-1"
+  // on figures — same physical point, so canonicalize the long form to the short one.
+  s = s.replace(/^GRAB\s*SAMPLE\s*#?\s*(\d+)$/, 'GS$1').replace(/^GS[\s-]*(\d+)$/, 'GS$1');
+  const stripped = s.replace(/\s*SS\s*\d*$/, '').trim();
+  if(stripped) s = stripped; // never let the trailing-SS strip empty out the whole name
+  return s;
+}
+
+// Same trailing-SS-suffix strip as normalizeBoreholeName, but case-preserving — used for
+// the DISPLAYED header text so it also reads "BH201" (not "BH201 SS2"), while keeping
+// whatever original casing the source PDF used, before the friendlier normalizeBhLabel
+// prefix-digit spacing cleanup runs on top of it.
+function stripTrailingSSDisplay(raw){
+  if(!raw) return raw;
+  const s = String(raw).trim().replace(/\s+/g, ' ');
+  const stripped = s.replace(/\s*SS\s*\d*$/i, '').trim();
+  return stripped || s;
+}
+
+// Natural sort so "BH2" < "BH10" < "BH100" (not lexicographic, where "BH10" < "BH2").
+// Whitespace is ignored for COMPARISON only (so a source typo like "BH 208(MW)" sorts
+// beside "BH206(MW)" / "BH209(MW)") — it never affects grouping identity.
+function naturalCompareBhName(a, b){
+  const re = /(\d+)|(\D+)/g;
+  const aParts = String(a).replace(/\s+/g,'').match(re) || [];
+  const bParts = String(b).replace(/\s+/g,'').match(re) || [];
+  const len = Math.max(aParts.length, bParts.length);
+  for(let i=0; i<len; i++){
+    const ap = aParts[i] || '', bp = bParts[i] || '';
+    const an = /^\d+$/.test(ap), bn = /^\d+$/.test(bp);
+    if(an && bn){
+      const diff = parseInt(ap,10) - parseInt(bp,10);
+      if(diff) return diff;
+    } else if(ap !== bp){
+      return ap < bp ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+// Sample IDs are "{jobNo}-{n}"; natural ordering is by the trailing sequence number.
+function naturalCompareSampleId(a, b){
+  const na = parseInt((a.match(/-(\d+)$/)||[0,0])[1], 10);
+  const nb = parseInt((b.match(/-(\d+)$/)||[0,0])[1], 10);
+  return na - nb;
+}
+
+// Extracts the shallow/top value from a depth string ("1.52-1.98m" -> 1.52,
+// "0.00-0.61m" -> 0, a bare "1.20m" -> 1.20); null when nothing numeric is present.
+function parseTopDepth(depth){
+  if(!depth) return null;
+  const m = String(depth).match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+
+const UNKNOWN_DATE_KEY = '\u0000UNKNOWN';
+
+// ---- Borehole -> Sampling Round -> Sample hierarchy builder -------------------------
+// The SOLE grouping entry point for the report. Runs identically whether one file or
+// many were uploaded — every sample (from processCertificate, then decorated by
+// mergeCertificates with _date/_depth/_jobNo/_tableLabels even for a single file) is
+// placed under its Borehole, then under the Sampling Round matching its OWN resolved
+// date. Field Duplicates are never a separate round — they're just another sample
+// sharing their original's Borehole+date, distinguished later only by their own
+// isSampleDup() flag when rendered.
+// ---- user-defined borehole name overrides ----
+// Sometimes the same physical borehole is spelled slightly differently across files (a typo,
+// an inconsistent suffix) and the automatic normalizeBoreholeName() canonicalization (case/
+// whitespace/trailing-SS only, deliberately conservative) correctly does NOT merge them —
+// two genuinely different names should never be silently combined. This lets the user say
+// explicitly "these are the same place": state.boreholeAliases maps the OLD canonical key to
+// the name the user wants used instead; resolveBhAlias follows that mapping (with a cycle
+// guard) to the FINAL grouping key, so renaming "BH1a" to "BH1" merges it with any real BH1.
+state.boreholeAliases = state.boreholeAliases || {}; // oldCanonicalKey -> newRawName
+
+function resolveBhAlias(key, depth){
+  depth = depth || 0;
+  if(depth > 5) return key; // cycle guard
+  const alias = state.boreholeAliases[key];
+  if(!alias) return key;
+  const nextKey = normalizeBoreholeName(alias);
+  if(nextKey === key) return key;
+  return resolveBhAlias(nextKey, depth + 1);
+}
+
+function buildBoreholeHierarchy(samples){
+  const boreholes = {};
+  const order = [];
+
+  Object.keys(samples).forEach(id=>{
+    const s = samples[id];
+    if(!CANON_ORDER.some(c=>s.categories[c])) return; // not part of any analyte table
+
+    // Strip a "(Dup)" tag before computing the Borehole identity — a duplicate sample
+    // must land in the SAME Borehole/round as its original, never a section of its own.
+    const cleanedBh = (s.bh || '').replace(DUP_TAG_RE, ' ').replace(/\s+/g,' ').trim();
+    const rawKey = normalizeBoreholeName(cleanedBh) || id;
+    const bhKey = resolveBhAlias(rawKey);
+    const aliasedRaw = state.boreholeAliases[rawKey]; // the exact text the user typed, if renamed
+
+    if(!boreholes[bhKey]){
+      boreholes[bhKey] = {
+        name: bhKey,                                          // canonical grouping key
+        displayName: normalizeBhLabel(stripTrailingSSDisplay(aliasedRaw || cleanedBh)) || bhKey,   // friendly header text
+        rounds: {}, roundOrder: []
+      };
+      order.push(bhKey);
+    }
+    const bh = boreholes[bhKey];
+
+    const dateKey = s._date || UNKNOWN_DATE_KEY;
+    if(!bh.rounds[dateKey]){
+      bh.rounds[dateKey] = {date: s._date || null, labJob: s._jobNo || null, sampleIds: []};
+      bh.roundOrder.push(dateKey);
+    }
+    bh.rounds[dateKey].sampleIds.push(id);
+  });
+
+  order.forEach(bhKey=>{
+    const bh = boreholes[bhKey];
+
+    // Within each round: sort by top depth, then Sample ID.
+    bh.roundOrder.forEach(dateKey=>{
+      bh.rounds[dateKey].sampleIds.sort((a,b)=>{
+        const da = parseTopDepth(samples[a]._depth);
+        const db = parseTopDepth(samples[b]._depth);
+        if(da != null && db != null && da !== db) return da - db;
+        if(da != null && db == null) return -1;
+        if(da == null && db != null) return 1;
+        return naturalCompareSampleId(a,b);
+      });
+    });
+
+    // Rounds sorted chronologically, oldest first; rounds with no resolvable date
+    // ("Unknown Date") always sort last rather than being guessed into a position.
+    bh.roundOrder.sort((ka,kb)=>{
+      if(ka === UNKNOWN_DATE_KEY) return kb === UNKNOWN_DATE_KEY ? 0 : 1;
+      if(kb === UNKNOWN_DATE_KEY) return -1;
+      const ta = parseDateLoose(bh.rounds[ka].date);
+      const tb = parseDateLoose(bh.rounds[kb].date);
+      if(ta != null && tb != null) return ta - tb;
+      if(ta != null) return -1;
+      if(tb != null) return 1;
+      return 0;
+    });
+  });
+
+  order.sort(naturalCompareBhName);
+  return order.map(name=>boreholes[name]);
+}
+
+// Renders ONE sample's data row (plus any exceedance-detail rows beneath it) for a
+// given standards label. Shared by every Borehole/Round combination so there is exactly
+// one place that knows how to draw a sample — no duplicated per-sample markup between
+// what used to be the single-file and multi-file renderers.
+function renderSampleRowsForLabel(id, s, label, catSet){
+  const inSet = c => !catSet || catSet.has(c);
+  const cats = CANON_ORDER.filter(c=>s.categories[c] && inSet(c));
+  const excForLabel = s.exceed[label] || {};
+  const excCatDetails = CANON_ORDER.filter(c=>excForLabel[c] && inSet(c)).map(cat=>({
+    cat, params: excForLabel[cat].map(e=>({name:outputParameterName(e.name, cat), val:e.val, std:e.std}))
+  }));
+  const excCats = excCatDetails.map(d=>d.cat);
+  const excGroups = categoryGroups(excCats).map(group=>({
+    ...group,
+    params: group.members.flatMap(member=>(excCatDetails.find(d=>d.cat===member)||{params:[]}).params)
+  }));
+  const hasExc = excCatDetails.length > 0;
+  const detailRowCount = excGroups.reduce((sum,g)=>sum + 1 + g.params.length, 0);
+  const rowspan = hasExc ? detailRowCount + 1 : 1;
+
+  const dup = isSampleDup(s);
+  const depth = s._depth || s.depth || null;
+  const idLabel = id + (dup ? ' (Field Duplicate)' : '');
+  const idCellText = idLabel + (depth ? ' ('+depth+')' : '');
+
+  const analyteListPlain = categoryGroups(cats).map(group=>group.label).join(', ');
+  const flagPlain = hasExc ? formatFlagList(excCats) : '';
+
+  const tsvRows = [[idCellText, analyteListPlain, flagPlain, hasExc ? '' : ('<'+label+' SCS')]];
+
+  // ---- data for the two AutoCAD CSV export modes (comma-delimited, built by the caller) ----
+  // Summary: all tested groups (lab names, no markers) + which groups exceeded, or the
+  // compliance text when nothing did. Detailed: one entry per individual exceeded parameter.
+  const csvAnalytes = categoryGroups(cats).map(group=>group.key==='ORP' ? 'ORP' : (CSV_GROUP_NAME[group.key]||group.label)).join(', ');
+  const csvExceededGroups = hasExc ? categoryGroups(excCats).map(group=>group.key==='ORP' ? 'ORP' : (CSV_GROUP_NAME[group.key]||group.label)).join(', ') : '';
+  const csvComplianceText = hasExc ? '' : ('<'+label+' SCS');
+  const csvDetailRows = hasExc
+    ? excCatDetails.flatMap(({cat, params})=>params.map(p=>({
+        group: CSV_GROUP_NAME[cat]||cat, parameter: p.name, result: String(p.val), standard: String(p.std)
+      })))
+    : [{group:'', parameter:'', result:'', standard:''}]; // one blank-detail row when nothing exceeded
+  const csvData = {
+    id: idLabel, depth: depth || '', analytes: csvAnalytes,
+    exceededGroups: csvExceededGroups, complianceText: csvComplianceText, detailRows: csvDetailRows
+  };
+  const idColor = hasExc ? '#C0392B' : '#1F8137';
+  const clipRows = [
+    `<tr><td style="${CLIP_TD}color:${idColor};font-weight:bold;">${esc(idCellText)}</td>`+
+    `<td style="${CLIP_TD}">${esc(analyteListPlain)}</td>`+
+    `<td style="${CLIP_TD}color:#C0392B;font-weight:bold;text-align:center;">${esc(flagPlain)}</td>`+
+    `<td style="${CLIP_TD}font-style:italic;text-align:center;">${hasExc ? '' : esc('<'+label+' SCS')}</td></tr>`
+  ];
+
+  let html = `<tr>
+    <td class="sid ${hasExc?'exceed':'ok'}" rowspan="${rowspan}" data-copyable data-copy="${esc(idCellText)}">${esc(idLabel)}${depth?`<span class="depth">(${esc(depth)})</span>`:''}</td>
+    <td data-copyable data-copy="${esc(analyteListPlain)}">${formatCatList(cats, excCats)}</td>`;
+
+  if(hasExc){
+    html += `<td class="center exc" data-copyable data-copy="${esc(flagPlain)}">${esc(flagPlain)}</td><td></td></tr>`;
+    excGroups.forEach(({label:catLabel, params})=>{
+      html += `<tr class="cat-head">
+        <td data-copyable data-copy="${esc(catLabel)}"><b class="exc">${esc(catLabel)}</b></td>
+        <td></td><td></td>
+      </tr>`;
+      tsvRows.push(['', catLabel, '', '']);
+      clipRows.push(`<tr><td style="${CLIP_TD}"></td><td style="${CLIP_TD}background:#F4F6FA;color:#C0392B;font-weight:bold;">${esc(catLabel)}</td><td style="${CLIP_TD}background:#F4F6FA;"></td><td style="${CLIP_TD}background:#F4F6FA;"></td></tr>`);
+      params.forEach(p=>{
+        html += `<tr>
+          <td data-copyable data-copy="${esc(p.name)}">${esc(p.name)}</td>
+          <td class="center exc" data-copyable data-copy="${esc(String(p.val))}">${esc(String(p.val))}</td>
+          <td class="center" data-copyable data-copy="${esc(String(p.std))}">${esc(String(p.std))}</td>
+        </tr>`;
+        tsvRows.push(['', p.name, String(p.val), String(p.std)]);
+        clipRows.push(`<tr><td style="${CLIP_TD}"></td><td style="${CLIP_TD}">${esc(p.name)}</td><td style="${CLIP_TD}color:#C0392B;font-weight:bold;text-align:center;">${esc(String(p.val))}</td><td style="${CLIP_TD}text-align:center;">${esc(String(p.std))}</td></tr>`);
+      });
+    });
+  } else {
+    html += `<td class="italic" colspan="2" data-copyable data-copy="&lt;${esc(label)} SCS">&lt;${esc(label)} SCS</td></tr>`;
+  }
+
+  return {html, tsvRows, clipRows, csvData};
+}
+
+// Builds ONE report card (for one standards label, e.g. "Table 3") iterating strictly
+// Borehole -> Sampling Round -> Sample. A Borehole only appears if at least one of its
+// rounds/samples was actually tested against THIS label; a round whose source file
+// never included e.g. Table 9 must never be shown as if it passed Table 9.
+function buildBoreholeReportEl(boreholes, samples, ctx, label){
+  const isSoil = ctx.matrix === 'SOIL';
+  const unit = isSoil ? 'ppm' : 'µg/L';
+  const textureNote = isSoil ? (ctx.texturePref==='bracket' ? ', Medium/Fine-Textured Soil' : ', Coarse-Textured Soil') : '';
+  const colHeader = `${label} SCS${textureNote}`.toUpperCase() + ` (${unit})`;
+  const title = (isSoil ? 'Soil' : 'Groundwater') + ' Sample Tally Table — COPCs / COCs in ' + (isSoil?'Soil':'Groundwater') + ' Before Remediation';
+
+  const catSet = ctx.visibleCats || null;
+  const sampleVisible = id => samples[id]._tableLabels.includes(label)
+    && CANON_ORDER.some(c=>samples[id].categories[c] && (!catSet || catSet.has(c)));
+  const filtered = boreholes.map(bh=>{
+    const rounds = bh.roundOrder.map(dateKey=>{
+      const round = bh.rounds[dateKey];
+      const sampleIds = round.sampleIds.filter(sampleVisible);
+      return {...round, sampleIds};
+    }).filter(r=>r.sampleIds.length>0);
+    return {...bh, filteredRounds: rounds};
+  }).filter(bh=>bh.filteredRounds.length>0);
+
+  if(!filtered.length) return null;
+
+  const el = document.createElement('div');
+  const theme = (ctx.tableColors && ctx.tableColors[label])
+    || (typeof themeFor === 'function' ? themeFor(label) : 'neutral');
+  el.className = 'report report--theme-' + theme;
+
+  const fullTsvKey = 'full_'+label.replace(/\W/g,'');
+  let html = `<div class="report-head">
+      <div>
+        <h2>${title}<span class="report-tablebadge">${esc(label)}</span></h2>
+        <p class="meta"><b>Project:</b> ${esc(ctx.projectName||'—')} &nbsp;&nbsp; <b>Project No.:</b> ${esc(ctx.projectId||'—')}</p>
+        <p class="meta"><b>Location:</b> ${esc(ctx.location||'—')}</p>
+      </div>
+      <div class="report-actions">
+        <button class="copy-btn" data-copy-block="${fullTsvKey}">📋 Copy full table</button>
+        <button class="copy-btn" data-csv-export="all_summary_${label.replace(/\W/g,'')}" title="Export every borehole in this report as one Summary CSV for AutoCAD">⬇ ALL SUMMARY CSV</button>
+        <button class="copy-btn" data-csv-export="all_detailed_${label.replace(/\W/g,'')}" title="Export every borehole in this report as one Detailed CSV for AutoCAD">⬇ ALL DETAILED CSV</button>
+      </div>
+    </div>
+    <p class="copy-hint">Click any cell to copy it. Use “Copy block” to grab a borehole's full record (every sampling round) as tab-separated text.</p>
+    <table class="tally">
+      <thead><tr>
+        <th>Sample ID,<br>(Sample Depth)</th>
+        <th>Method Group or<br>Parameter Analyzed</th>
+        <th>Result of<br>Analysis (${unit})</th>
+        <th>${esc(colHeader)}</th>
+      </tr></thead><tbody>`;
+
+  let missingDate = false;
+  const reportRows = [];
+
+  const clipTheme = THEME_CLIP[theme] || THEME_CLIP.neutral;
+  const clipColHeader = `<tr>`+['Sample ID, (Sample Depth)','Method Group or Parameter Analyzed',`Result of Analysis (${unit})`,colHeader]
+    .map(h=>`<td style="${CLIP_TD}background:${clipTheme.head};color:${clipTheme.headText};font-weight:bold;text-align:center;">${esc(h)}</td>`).join('')+`</tr>`;
+  const fullClipRows = [clipColHeader];
+
+  const SUMMARY_HEADER = 'BH,Date,SampleID,Depth,Analyses,ExceededGroups,ComplianceText';
+  const DETAILED_HEADER = 'BH,Date,SampleID,Depth,Analyses,ExceededGroup,Parameter,ResultValue,StandardValue,ComplianceText';
+  const allSummaryLines = [SUMMARY_HEADER];
+  const allDetailedLines = [DETAILED_HEADER];
+
+  filtered.forEach((bh, gi)=>{
+    const roundCount = bh.filteredRounds.length;
+    const blockId = 'blk_'+label.replace(/\W/g,'')+'_'+gi;
+    const blockTsvRows = [[bh.displayName, '', '', '']];
+    const blockClipRows = [`<tr><td colspan="4" style="${CLIP_TD}background:${clipTheme.head};color:${clipTheme.headText};font-weight:bold;text-align:center;">${esc(bh.displayName)}</td></tr>`];
+    const summaryLines = [SUMMARY_HEADER];
+    const detailedLines = [DETAILED_HEADER];
+
+    // ONE header row per Borehole — never repeated, even across many sampling rounds.
+    html += `<tr class="bh-row">
+      <td colspan="4" data-copyable data-copy="${esc(bh.displayName)}">
+        <span class="bh-name">${esc(bh.displayName)}</span>${roundCount>1?`<span class="bh-rounds-count">${roundCount} rounds</span>`:''}
+        <button class="copy-btn rename-btn" data-rename-bh="${esc(bh.name)}" data-rename-current="${esc(bh.displayName)}" title="Rename this borehole — matching names elsewhere will be grouped under the new name">✏️ Rename</button>
+        <button class="copy-btn" data-copy-block="${blockId}" title="Copy this borehole's full record as tab-separated text">📋 Copy block</button>
+        <button class="copy-btn" data-csv-export="sum_${blockId}" title="Export this borehole as a Summary CSV for AutoCAD">⬇ SUMMARY CSV</button>
+        <button class="copy-btn" data-csv-export="det_${blockId}" title="Export this borehole as a Detailed CSV for AutoCAD">⬇ DETAILED CSV</button>
+      </td></tr>`;
+
+    bh.filteredRounds.forEach(round=>{
+      const dateLabel = round.date || 'Unknown Date';
+      if(!round.date) missingDate = true;
+      const jobLabel = round.labJob ? `Job ${round.labJob}` : '';
+      const csvDate = round.date ? fmtCsvDate(round.date) : 'Unknown Date';
+
+      html += `<tr class="round-subhead">
+        <td colspan="4" data-copyable data-copy="${esc(dateLabel)}">
+          <span class="round-date">${esc(dateLabel)}</span>${jobLabel?` <span class="round-job">(${esc(jobLabel)})</span>`:''}
+        </td></tr>`;
+      blockTsvRows.push([dateLabel + (jobLabel?' ('+jobLabel+')':''), '', '', '']);
+      blockClipRows.push(`<tr><td colspan="4" style="${CLIP_TD}background:${clipTheme.round};color:${clipTheme.roundText};font-weight:bold;">${esc(dateLabel + (jobLabel?' ('+jobLabel+')':''))}</td></tr>`);
+
+      round.sampleIds.forEach(id=>{
+        const {html: rowHtml, tsvRows, clipRows, csvData} = renderSampleRowsForLabel(id, samples[id], label, catSet);
+        html += rowHtml;
+        blockTsvRows.push(...tsvRows);
+        blockClipRows.push(...clipRows);
+
+        const summaryRow = csvRow([bh.displayName, csvDate, csvData.id, csvData.depth, csvData.analytes, csvData.exceededGroups, csvData.complianceText]);
+        summaryLines.push(summaryRow);
+        allSummaryLines.push(summaryRow);
+
+        csvData.detailRows.forEach(d=>{
+          const detailRow = csvRow([bh.displayName, csvDate, csvData.id, csvData.depth, csvData.analytes, d.group, d.parameter, d.result, d.standard, d.group ? '' : csvData.complianceText]);
+          detailedLines.push(detailRow);
+          allDetailedLines.push(detailRow);
+        });
+      });
+    });
+
+    const blockTsv = blockTsvRows.map(r=>r.join('\t')).join('\n');
+    reportRows.push(...blockTsvRows);
+    fullClipRows.push(...blockClipRows);
+    (window._copyBlocks = window._copyBlocks || {})[blockId] = {tsv: blockTsv, html: clipWrap([clipColHeader].concat(blockClipRows).join(''))};
+    (window._csvExports = window._csvExports || {})['sum_'+blockId] = {
+      name: safeFileName(bh.displayName + '_AutoCAD_Summary_' + label) + '.csv',
+      text: summaryLines.join('\r\n')
+    };
+    (window._csvExports = window._csvExports || {})['det_'+blockId] = {
+      name: safeFileName(bh.displayName + '_AutoCAD_Detailed_' + label) + '.csv',
+      text: detailedLines.join('\r\n')
+    };
+  });
+
+  html += `</tbody></table>`;
+  if(missingDate){
+    html += `<p class="warn">Some sampling rounds have no confirmed date — upload the Sampling Date / Screen Interval reference file to fill these in.</p>`;
+  }
+  el.innerHTML = html;
+
+  const fullReportTsv = reportRows.map(r=>r.join('\t')).join('\n');
+  (window._copyBlocks = window._copyBlocks || {})[fullTsvKey] = {tsv: fullReportTsv, html: clipWrap(fullClipRows.join(''))};
+  (window._csvExports = window._csvExports || {})['all_summary_'+label.replace(/\W/g,'')] = {
+    name: safeFileName('Project_AutoCAD_Summary_' + label) + '.csv',
+    text: allSummaryLines.join('\r\n')
+  };
+  (window._csvExports = window._csvExports || {})['all_detailed_'+label.replace(/\W/g,'')] = {
+    name: safeFileName('Project_AutoCAD_Detailed_' + label) + '.csv',
+    text: allDetailedLines.join('\r\n')
+  };
+
+  return el;
+}
+
+function dateMapLookup(id, ctx){
+  if(ctx.dateMapRef){
+    const e = ctx.dateMapRef[id];
+    if(e && e.date) return e.date;
+  }
+  // No per-sample date from the reference file — fall back to the certificate's own
+  // "Date Sampled:" field, but only if it was a single date (ranges/multi-dates still blank).
+  return ctx.dateSampledSingle || null;
+}
+
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* =====================================================================================
+   PROJECT PERSISTENCE (IndexedDB)
+   -------------------------------------------------------------------------------------
+   Saves the exact working state — every uploaded certificate/reference file, borehole
+   renames, table/analysis selections, colours, and confirmed screen-length choices — so
+   reopening the page later picks up right where it was left, with no re-uploading or
+   re-configuring. Purely local: nothing leaves the browser, same as everything else in
+   this tool. A visible "Clear saved project" control always lets it be wiped on demand.
+   ===================================================================================== */
+const PROJECT_DB_NAME = 'coaTallyProject';
+const PROJECT_DB_VERSION = 2;
+
+function openProjectDB(){
+  return new Promise((resolve, reject)=>{
+    if(typeof indexedDB === 'undefined'){ reject(new Error('IndexedDB unavailable')); return; }
+    const req = indexedDB.open(PROJECT_DB_NAME, PROJECT_DB_VERSION);
+    req.onupgradeneeded = (e)=>{
+      const db = e.target.result;
+      const tx = e.target.transaction;
+      if(!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', {keyPath:'id', autoIncrement:true});
+      let projectFiles;
+      if(!db.objectStoreNames.contains('projectFiles')){
+        projectFiles = db.createObjectStore('projectFiles', {keyPath:'id', autoIncrement:true});
+        projectFiles.createIndex('by_project', 'projectId');
+      } else {
+        projectFiles = tx.objectStore('projectFiles');
+      }
+      // Migrate a v1 (single-project) save into a proper first project, so nothing from
+      // an earlier version is silently lost.
+      if(db.objectStoreNames.contains('meta') && db.objectStoreNames.contains('files')){
+        const oldMeta = tx.objectStore('meta');
+        const oldFiles = tx.objectStore('files');
+        const projects = db.objectStoreNames.contains('projects') ? tx.objectStore('projects') : null;
+        oldMeta.get('settings').onsuccess = (ev)=>{
+          const m = ev.target.result;
+          if(!m || !projects) return;
+          const addReq = projects.add({
+            name: 'Restored Project', createdAt: m.savedAt || Date.now(), updatedAt: m.savedAt || Date.now(),
+            boreholeAliases: m.boreholeAliases || {}, selectedTables: m.selectedTables || {}, selectedCats: m.selectedCats || {},
+            tableColors: m.tableColors || {}, matrixOverride: m.matrixOverride || 'auto', texturePref: m.texturePref || 'standard',
+            boreholeLogEntries: m.boreholeLogEntries || [], pastedRefText: m.pastedRefText || '',
+            xlsxRefBlob: m.xlsxRefBlob || null, xlsxRefName: m.xlsxRefName || null
+          });
+          addReq.onsuccess = ()=>{
+            const newProjectId = addReq.result;
+            oldFiles.getAll().onsuccess = (ev2)=>{
+              (ev2.target.result || []).forEach(f=>{
+                projectFiles.add({projectId: newProjectId, name: f.name, type: f.type, blob: f.blob});
+              });
+            };
+          };
+        };
+        db.deleteObjectStore('meta');
+        db.deleteObjectStore('files');
+      }
+    };
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = ()=>reject(req.error);
+  });
+}
+
+function idbReq(req){
+  return new Promise((resolve, reject)=>{
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = ()=>reject(req.error);
+  });
+}
+
+async function createProject(name){
+  const db = await openProjectDB();
+  const tx = db.transaction(['projects'], 'readwrite');
+  const now = Date.now();
+  const id = await idbReq(tx.objectStore('projects').add({
+    name, createdAt: now, updatedAt: now,
+    boreholeAliases: {}, selectedTables: {}, selectedCats: {}, tableColors: {},
+    matrixOverride: 'auto', texturePref: 'standard', boreholeLogEntries: [],
+    pastedRefText: '', xlsxRefBlob: null, xlsxRefName: null
+  }));
+  return id;
+}
+
+let _saveTimer = null;
+// Debounced — many small state changes (a checkbox, a colour swatch) can fire in quick
+// succession; only the last one within the window actually triggers a write.
+function saveProjectState(){
+  if(typeof indexedDB === 'undefined') return;
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(()=>{ saveProjectStateNow().catch(err=>console.error('project save failed', err)); }, 500);
+}
+
+async function saveProjectStateNow(){
+  // Background autosave only ever UPDATES an already-active project (created explicitly
+  // via the Save Project button) — it must never silently create a new, auto-named one,
+  // or the name the user is about to type would be thrown away.
+  if(!state.currentProjectId) return;
+  const projectId = state.currentProjectId;
+
+  const db = await openProjectDB();
+  const tx = db.transaction(['projects','projectFiles'], 'readwrite');
+  const projectsStore = tx.objectStore('projects');
+  const filesStore = tx.objectStore('projectFiles');
+
+  // replace this project's file rows with the current set
+  const idx = filesStore.index('by_project');
+  await new Promise((resolve, reject)=>{
+    const cur = idx.openCursor(IDBKeyRange.only(projectId));
+    cur.onsuccess = (e)=>{
+      const c = e.target.result;
+      if(c){ c.delete(); c.continue(); } else resolve();
+    };
+    cur.onerror = ()=>reject(cur.error);
+  });
+  state.files.filter(f=>f.status==='ready' && f.blob).forEach(f=>{
+    filesStore.add({projectId, name: f.name, type: (f.blob && f.blob.type) || '', blob: f.blob});
+  });
+
+  const existing = await idbReq(projectsStore.get(projectId));
+  const updated = Object.assign({}, existing, {
+    id: projectId,
+    updatedAt: Date.now(),
+    boreholeAliases: state.boreholeAliases || {},
+    selectedTables: state.selectedTables || {},
+    selectedCats: state.selectedCats || {},
+    tableColors: state.tableColors || {},
+    matrixOverride: (document.getElementById('matrixSelect')||{}).value || 'auto',
+    texturePref: (document.getElementById('textureSelect')||{}).value || 'standard',
+    boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen})),
+    pastedRefText: (document.getElementById('pasteRef')||{}).value || '',
+    xlsxRefBlob: state.xlsxRefBlob || null,
+    xlsxRefName: state.xlsxRefName || null
+  });
+  projectsStore.put(updated);
+
+  await new Promise((resolve, reject)=>{
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = ()=>reject(tx.error);
+  });
+  renderProjectBar(updated.name);
+}
+
+async function listProjects(){
+  const db = await openProjectDB();
+  const tx = db.transaction(['projects','projectFiles'], 'readonly');
+  const projects = await idbReq(tx.objectStore('projects').getAll());
+  const files = await idbReq(tx.objectStore('projectFiles').getAll());
+  const counts = {};
+  files.forEach(f=>{ counts[f.projectId] = (counts[f.projectId]||0) + 1; });
+  return projects.map(p=>Object.assign({}, p, {fileCount: counts[p.id]||0}))
+    .sort((a,b)=> b.updatedAt - a.updatedAt);
+}
+
+async function deleteProject(id){
+  const db = await openProjectDB();
+  const tx = db.transaction(['projects','projectFiles'], 'readwrite');
+  tx.objectStore('projects').delete(id);
+  const idx = tx.objectStore('projectFiles').index('by_project');
+  await new Promise((resolve, reject)=>{
+    const cur = idx.openCursor(IDBKeyRange.only(id));
+    cur.onsuccess = (e)=>{
+      const c = e.target.result;
+      if(c){ c.delete(); c.continue(); } else resolve();
+    };
+    cur.onerror = ()=>reject(cur.error);
+  });
+  await new Promise((resolve, reject)=>{
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = ()=>reject(tx.error);
+  });
+  if(state.currentProjectId === id) resetWorkspace();
+}
+
+// Clears everything in memory/on screen WITHOUT touching any saved project — used both for
+// "+ New project" and after deleting the currently-open project.
+function resetWorkspace(){
+  state.currentProjectId = null;
+  state.files = [];
+  state.boreholeAliases = {};
+  state.selectedTables = {};
+  state.selectedCats = {};
+  state.tableColors = {};
+  state.boreholeLogEntries = [];
+  state.xlsxDates = null;
+  state.pastedRef = null;
+  state.xlsxRefBlob = null;
+  state.xlsxRefName = null;
+  renderFileChips();
+  renderTableChecks();
+  renderCatChecks();
+  renderLogConfirmTable();
+  const wrap = document.getElementById('reportWrap');
+  if(wrap) wrap.innerHTML = '<p style="color:var(--muted); font-size:13px;">Upload one or more Certificate of Analysis files (PDF or TXT) to begin.</p>';
+  if(document.getElementById('xlsxName')){ document.getElementById('xlsxName').style.display='none'; document.getElementById('xlsxName').textContent=''; }
+  if(document.getElementById('pasteRef')) document.getElementById('pasteRef').value = '';
+  if(document.getElementById('pasteRefStatus')) document.getElementById('pasteRefStatus').textContent = '';
+  if(document.getElementById('runBtn')) document.getElementById('runBtn').disabled = true;
+  if(document.getElementById('copyBtn')) document.getElementById('copyBtn').style.display = 'none';
+  renderProjectBar('Untitled');
+  setStatus('Ready for a new project.');
+}
+
+/* ---- portable project file (.coaproject.json) — for sending a project to a colleague ----
+   IndexedDB never leaves this browser, so it can't be emailed or shared. This bundles the
+   same thing IndexedDB stores — every certificate file, the reference file, and every
+   choice (including borehole renames) — into one real downloadable file with a real
+   extension, so borehole-name corrections (or a whole project) can be handed to a
+   colleague and opened exactly as-is. */
+async function blobToBase64(blob){
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000;
+  for(let i=0; i<bytes.length; i+=chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+  }
+  return btoa(binary);
+}
+function base64ToBlob(base64, type){
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], {type: type || ''});
+}
+
+async function exportProjectFile(){
+  if(!state.files.some(f=>f.status==='ready')){ setStatus('Add at least one file before exporting.', true); return; }
+  const btn = document.getElementById('exportProjectBtn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = 'Preparing…'; btn.disabled = true;
+  try{
+    const filesOut = [];
+    for(const f of state.files.filter(x=>x.status==='ready' && x.blob)){
+      filesOut.push({name: f.name, type: (f.blob && f.blob.type) || '', base64: await blobToBase64(f.blob)});
+    }
+    const xlsxRefBase64 = state.xlsxRefBlob ? await blobToBase64(state.xlsxRefBlob) : null;
+    const projectName = document.getElementById('currentProjectName').textContent || 'Untitled';
+    const payload = {
+      appName: 'COA Tally Processor', exportVersion: 1, projectName, exportedAt: Date.now(),
+      settings: {
+        boreholeAliases: state.boreholeAliases || {},
+        selectedTables: state.selectedTables || {},
+        selectedCats: state.selectedCats || {},
+        tableColors: state.tableColors || {},
+        matrixOverride: (document.getElementById('matrixSelect')||{}).value || 'auto',
+        texturePref: (document.getElementById('textureSelect')||{}).value || 'standard',
+        boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen})),
+        pastedRefText: (document.getElementById('pasteRef')||{}).value || '',
+        xlsxRefName: state.xlsxRefName || null,
+        xlsxRefBase64
+      },
+      files: filesOut
+    };
+    const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = safeFileName(projectName) + '.coaproject.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 400);
+    setStatus('Exported "' + projectName + '" — send that file to a colleague and they can Import it.');
+  }catch(err){
+    console.error('export failed', err);
+    setStatus('Could not export the project: ' + err.message, true);
+  }finally{
+    btn.innerHTML = orig; btn.disabled = false;
+  }
+}
+
+async function importProjectFile(file){
+  try{
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    if(!payload || !payload.settings || !Array.isArray(payload.files)) throw new Error('That doesn\'t look like a .coaproject file.');
+    if(state.files.length && !confirm('Import "' + (payload.projectName||'this project') + '"? The current screen will be replaced — anything already saved as a project is not affected.')) return;
+
+    resetWorkspace();
+    const s = payload.settings;
+    state.boreholeAliases = s.boreholeAliases || {};
+    state.selectedTables = s.selectedTables || {};
+    state.selectedCats = s.selectedCats || {};
+    state.tableColors = s.tableColors || {};
+    state.boreholeLogEntries = s.boreholeLogEntries || [];
+    if(document.getElementById('matrixSelect')) document.getElementById('matrixSelect').value = s.matrixOverride || 'auto';
+    if(document.getElementById('textureSelect')) document.getElementById('textureSelect').value = s.texturePref || 'standard';
+
+    const fileObjs = payload.files.map(f=> new File([base64ToBlob(f.base64, f.type)], f.name, {type: f.type||''}));
+    if(fileObjs.length) await addCertificateFiles(fileObjs);
+
+    if(s.xlsxRefBase64){
+      const refFile = new File([base64ToBlob(s.xlsxRefBase64, '')], s.xlsxRefName || 'reference.xlsx', {});
+      await loadReferenceFile(refFile);
+    }
+    if(s.pastedRefText && document.getElementById('pasteRef')){
+      document.getElementById('pasteRef').value = s.pastedRefText;
+      state.pastedRef = parsePastedReference(s.pastedRefText);
+      document.getElementById('pasteRefStatus').textContent = 'Parsed from pasted text: ' + refSummary(state.pastedRef) + '.';
+    }
+
+    renderLogConfirmTable();
+    renderTableChecks();
+    renderCatChecks();
+    // Deliberately NOT saved as a project yet — importing should never silently create or
+    // overwrite one of the importer's own saved projects; they choose the name themselves.
+    renderProjectBar((payload.projectName || 'Untitled') + ' (imported)');
+    setStatus('Imported "' + (payload.projectName||'project') + '" — click 💾 Save Project to keep it in this browser.');
+    processNow();
+  }catch(err){
+    console.error('import failed', err);
+    setStatus('Could not import that file: ' + err.message, true);
+  }
+}
+
+async function openProject(id){
+  try{
+    const db = await openProjectDB();
+    const tx = db.transaction(['projects','projectFiles'], 'readonly');
+    const project = await idbReq(tx.objectStore('projects').get(id));
+    const idx = tx.objectStore('projectFiles').index('by_project');
+    const files = await idbReq(idx.getAll(IDBKeyRange.only(id)));
+    if(!project) return;
+
+    resetWorkspace();
+    state.currentProjectId = id;
+    state.boreholeAliases = project.boreholeAliases || {};
+    state.selectedTables = project.selectedTables || {};
+    state.selectedCats = project.selectedCats || {};
+    state.tableColors = project.tableColors || {};
+    state.boreholeLogEntries = project.boreholeLogEntries || [];
+    if(document.getElementById('matrixSelect')) document.getElementById('matrixSelect').value = project.matrixOverride || 'auto';
+    if(document.getElementById('textureSelect')) document.getElementById('textureSelect').value = project.texturePref || 'standard';
+
+    if(files.length){
+      const fileObjs = files.map(f=> new File([f.blob], f.name, {type:f.type||''}));
+      await addCertificateFiles(fileObjs);
+    }
+    if(project.xlsxRefBlob){
+      const refFile = new File([project.xlsxRefBlob], project.xlsxRefName||'reference.xlsx', {type:(project.xlsxRefBlob&&project.xlsxRefBlob.type)||''});
+      await loadReferenceFile(refFile);
+    }
+    if(project.pastedRefText && document.getElementById('pasteRef')){
+      document.getElementById('pasteRef').value = project.pastedRefText;
+      state.pastedRef = parsePastedReference(project.pastedRefText);
+      document.getElementById('pasteRefStatus').textContent = 'Parsed from pasted text: ' + refSummary(state.pastedRef) + '.';
+    }
+
+    renderLogConfirmTable();
+    renderTableChecks();
+    renderCatChecks();
+    renderProjectBar(project.name);
+    setStatus('Project "' + project.name + '" opened — processing…');
+    processNow();
+  }catch(err){
+    console.error('open project failed', err);
+    setStatus('Could not open that project: ' + err.message, true);
+  }
+}
+
+// Updates the project name shown in the always-visible bar.
+function renderProjectBar(name){
+  const nameEl = document.getElementById('currentProjectName');
+  if(nameEl) nameEl.textContent = name || 'Untitled';
+}
+
+// Populates the dropdown's project list — only needs to run while the dropdown is open.
+async function renderProjectDropdownList(){
+  const list = document.getElementById('projectList');
+  if(!list || typeof indexedDB === 'undefined') return;
+  let projects = [];
+  try{ projects = await listProjects(); }catch(err){ console.error('listProjects failed', err); }
+  if(!projects.length){
+    list.innerHTML = '<p class="hint-note" style="margin:4px 0 0;">No saved projects yet.</p>';
+    return;
+  }
+  list.innerHTML = projects.map(p=>{
+    const active = p.id === state.currentProjectId;
+    const when = new Date(p.updatedAt).toLocaleString();
+    return `<div class="project-row${active?' active':''}">
+      <div>
+        <div class="pr-name">${esc(p.name)}${active?' <span style="color:var(--accent-soft); font-size:11px;">(current)</span>':''}</div>
+        <div class="pr-meta">${p.fileCount} file${p.fileCount===1?'':'s'} · updated ${esc(when)}</div>
+      </div>
+      <div class="pr-actions">
+        ${active?'':'<button type="button" class="ghost" data-open-project="'+p.id+'">Open</button>'}
+        <button type="button" class="ghost" data-delete-project="${p.id}" title="Delete this project">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function closeProjectDropdown(){
+  const dd = document.getElementById('projectDropdown');
+  if(dd) dd.style.display = 'none';
+}
+
+if(typeof document !== 'undefined' && document.getElementById('projectList')){
+  document.getElementById('openProjectBtn').addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    const dd = document.getElementById('projectDropdown');
+    const opening = dd.style.display !== 'block';
+    dd.style.display = opening ? 'block' : 'none';
+    if(opening) await renderProjectDropdownList();
+  });
+  document.addEventListener('click', (e)=>{
+    const dd = document.getElementById('projectDropdown');
+    if(dd && dd.style.display==='block' && !dd.contains(e.target) && e.target.id!=='openProjectBtn') closeProjectDropdown();
+  });
+
+  document.getElementById('projectList').addEventListener('click', (e)=>{
+    const openBtn = e.target.closest('[data-open-project]');
+    if(openBtn){ closeProjectDropdown(); openProject(parseInt(openBtn.dataset.openProject, 10)); return; }
+    const delBtn = e.target.closest('[data-delete-project]');
+    if(delBtn){
+      const id = parseInt(delBtn.dataset.deleteProject, 10);
+      if(confirm('Delete this project (its files, renames, and choices)? This cannot be undone.')){
+        deleteProject(id).then(renderProjectDropdownList);
+      }
+    }
+  });
+
+  document.getElementById('newProjectBtn').addEventListener('click', async ()=>{
+    closeProjectDropdown();
+    if(state.files.length && !confirm('Start a new project? The current one has already been saved, so nothing is lost — this just clears the screen to begin a new one.')) return;
+    resetWorkspace();
+    const name = prompt('Name this project:', 'Project — ' + new Date().toLocaleDateString());
+    if(name && name.trim()){
+      const id = await createProject(name.trim());
+      state.currentProjectId = id;
+      renderProjectBar(name.trim());
+    }
+  });
+
+  document.getElementById('exportProjectBtn').addEventListener('click', exportProjectFile);
+  document.getElementById('importProjectBtn').addEventListener('click', ()=> document.getElementById('importProjectInput').click());
+  document.getElementById('importProjectInput').addEventListener('change', (e)=>{
+    const f = e.target.files[0];
+    e.target.value = '';
+    if(f) importProjectFile(f);
+  });
+
+  document.getElementById('renameProjectBtn').addEventListener('click', async ()=>{
+    if(!state.currentProjectId){ alert('Save the project first (💾 Save Project), then you can rename it.'); return; }
+    const db = await openProjectDB();
+    const tx = db.transaction(['projects'], 'readwrite');
+    const store = tx.objectStore('projects');
+    const project = await idbReq(store.get(state.currentProjectId));
+    if(!project) return;
+    const name = prompt('Rename this project:', project.name);
+    if(name && name.trim()){
+      project.name = name.trim();
+      store.put(project);
+      renderProjectBar(name.trim());
+    }
+  });
+
+  // Explicit, predictable save — prompts for a name the first time, silently updates after that.
+  document.getElementById('saveProjectBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('saveProjectBtn');
+    if(!state.files.length){ setStatus('Add at least one file before saving.', true); return; }
+    if(!state.currentProjectId){
+      const name = prompt('Name this project:', 'Project — ' + new Date().toLocaleDateString());
+      if(!name || !name.trim()) return;
+      const id = await createProject(name.trim());
+      state.currentProjectId = id;
+      renderProjectBar(name.trim());
+    }
+    try{
+      await saveProjectStateNow();
+      const orig = btn.innerHTML;
+      btn.classList.add('copied');
+      btn.innerHTML = '✓ Saved';
+      setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML = orig; }, 1300);
+    }catch(err){
+      console.error('save failed', err);
+      setStatus('Could not save the project: ' + err.message, true);
+    }
+  });
+
+  document.getElementById('clearProjectBtn').addEventListener('click', async ()=>{
+    if(!state.currentProjectId){ alert('No project is currently open.'); return; }
+    if(!confirm('Delete the CURRENT project from this browser? Other saved projects are not affected. This cannot be undone.')) return;
+    await deleteProject(state.currentProjectId);
+  });
+}
+
+if(typeof indexedDB !== 'undefined'){
+  // Only show the bar once a project genuinely exists — a brand-new visit stays minimal
+  // until the first Save (or first autosaved file) actually creates one.
+  listProjects().then(projects=>{
+    const current = projects.find(p=>p.id === state.currentProjectId);
+    if(current) renderProjectBar(current.name);
+  }).catch(()=>{});
+}
+</script>
+
+
+</body></html>
