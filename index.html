@@ -709,7 +709,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.8 · Excel paste for GW depths</span>
+  <span class="ver">v25.8.1 · Groundwater blue default</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -960,6 +960,14 @@ function defaultThemeFor(label){
 
 function themeFor(label){
   return state.tableColors[label] || defaultThemeFor(label);
+}
+
+// Groundwater reports always default to blue, regardless of the standards table number.
+// A user-selected swatch still overrides the default.
+function reportThemeFor(label, ctx){
+  const picked = (ctx && ctx.tableColors && ctx.tableColors[label]) || state.tableColors[label];
+  if(picked) return picked;
+  return (ctx && ctx.matrix === 'GW') ? 'blue' : defaultThemeFor(label);
 }
 
 function detectedTableLabels(){
@@ -2903,7 +2911,7 @@ function renderReports({samples, ctx}, wrap){
     const el = buildBoreholeReportEl(boreholes, samples, ctx, label);
     if(el){
       if(appended > 0){
-        const theme = (ctx.tableColors && ctx.tableColors[label]) || themeFor(label);
+        const theme = reportThemeFor(label, ctx);
         wrap.appendChild(buildReportDivider(label, theme));
       }
       wrap.appendChild(el);
@@ -3497,8 +3505,7 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
   if(!filtered.length) return null;
 
   const el = document.createElement('div');
-  const theme = (ctx.tableColors && ctx.tableColors[label])
-    || (typeof themeFor === 'function' ? themeFor(label) : 'neutral');
+  const theme = reportThemeFor(label, ctx);
   el.className = 'report report--theme-' + theme;
 
   const fullTsvKey = 'full_'+label.replace(/\W/g,'');
