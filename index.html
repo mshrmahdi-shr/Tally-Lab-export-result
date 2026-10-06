@@ -693,7 +693,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
   <div class="gw-sheet-head">
     <div>
       <div class="gw-sheet-title">💧 Groundwater Well Depths</div>
-      <div class="gw-sheet-note">Type depth → Enter moves to next well · 5-ft screens default = 2</div>
+      <div class="gw-sheet-note">Type depth → Enter moves to next well · or paste Excel cells directly · 5-ft screens default = 2</div>
     </div>
   </div>
   <table>
@@ -709,7 +709,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.7 · Floating GW depth worksheet</span>
+  <span class="ver">v25.8 · Excel paste for GW depths</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1441,6 +1441,98 @@ if(gwDepthPanel){
       const next = document.querySelector('.gw-sheet-depth[data-gw-index="'+nextIndex+'"]');
       if(next){ next.focus(); next.select(); }
     }, 0);
+  });
+
+  // Excel paste support:
+  // 1 column  -> depths, starting at the focused well
+  // 2 columns -> Well | Depth (matched by well name; or sequential if no match)
+  // 3 columns -> Well | Depth | Screens
+  // Excel copies rows as newline-separated and cells as tab-separated.
+  gwDepthPanel.addEventListener('paste', (e)=>{
+    const input = e.target.closest('.gw-sheet-depth');
+    if(!input) return;
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    if(!text || !/[\t\r\n]/.test(text)) return; // ordinary single-value paste can stay native
+
+    e.preventDefault();
+    const rows = text.replace(/\r/g,'').split('\n')
+      .map(line=>line.split('\t').map(v=>v.trim()))
+      .filter(cols=>cols.some(v=>v!==''));
+    if(!rows.length) return;
+
+    const panelRows = Array.from(gwDepthPanel.querySelectorAll('tr[data-gw-bh]'));
+    const startIdx = parseInt(input.dataset.gwIndex,10) || 0;
+    let applied = 0;
+
+    const normWell = v => normalizeBoreholeName(String(v||'').replace(/\s*\([^)]*\)\s*$/,'').trim());
+    const findRowByWell = well => {
+      const key = normWell(well);
+      if(!key) return null;
+      return panelRows.find(r=>{
+        const rowKey = normWell(r.dataset.gwBh);
+        const display = normWell((r.cells[0]||{}).textContent || '');
+        return rowKey === key || display === key;
+      }) || null;
+    };
+    const numericDepth = v => {
+      const m = String(v||'').replace(/,/g,'.').match(/-?\d+(?:\.\d+)?/);
+      return m ? parseFloat(m[0]) : NaN;
+    };
+    const validScreens = v => {
+      const n = parseInt(String(v||'').match(/\d+/)?.[0] || '',10);
+      return n>=1 && n<=3 ? n : null;
+    };
+
+    // Detect a header row copied from Excel and skip it.
+    if(rows.length && rows[0].some(v=>/well|borehole|depth|screen/i.test(v))){
+      rows.shift();
+    }
+
+    const multiColumn = rows.some(r=>r.length>1);
+    rows.forEach((cols, offset)=>{
+      let targetRow = null;
+      let depthValue = NaN;
+      let screenValue = null;
+
+      if(multiColumn){
+        // Prefer Well | Depth | Screens. If first column is not a known well but is numeric,
+        // treat the paste as Depth | Screens and fill sequentially.
+        targetRow = findRowByWell(cols[0]);
+        if(targetRow){
+          depthValue = numericDepth(cols[1]);
+          screenValue = validScreens(cols[2]);
+        }else if(isFinite(numericDepth(cols[0]))){
+          targetRow = panelRows[startIdx + offset] || null;
+          depthValue = numericDepth(cols[0]);
+          screenValue = validScreens(cols[1]);
+        }else{
+          // A well label that doesn't match is skipped rather than assigned to the wrong row.
+          return;
+        }
+      }else{
+        targetRow = panelRows[startIdx + offset] || null;
+        depthValue = numericDepth(cols[0]);
+      }
+
+      if(!targetRow || !isFinite(depthValue)) return;
+      const depthEl = targetRow.querySelector('.gw-sheet-depth');
+      const screenEl = targetRow.querySelector('.gw-sheet-screens');
+      depthEl.value = depthValue;
+      if(screenValue && screenEl) screenEl.value = String(screenValue);
+      saveGwSheetRow(targetRow);
+      applied++;
+    });
+
+    if(applied){
+      if(state.rerender) state.rerender();
+      setTimeout(()=>{
+        const next = document.querySelector('.gw-sheet-depth[data-gw-index="'+Math.min(startIdx+applied, panelRows.length-1)+'"]');
+        if(next){ next.focus(); next.select(); }
+      },0);
+      setStatus('Pasted ' + applied + ' groundwater well depth' + (applied===1?'':'s') + ' from Excel.');
+    }else{
+      setStatus('No valid well/depth values found in the pasted Excel cells.', true);
+    }
   });
 }
 
