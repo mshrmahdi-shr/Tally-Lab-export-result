@@ -676,7 +676,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.6 · GW screen depth + date logic</span>
+  <span class="ver">v25.6.1 · Trip Blank filtered</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -3132,9 +3132,14 @@ function buildBoreholeHierarchy(samples){
     const s = samples[id];
     if(!CANON_ORDER.some(c=>s.categories[c])) return; // not part of any analyte table
 
+    // Laboratory quality-control blanks are not physical boreholes / monitoring wells.
+    // Never show Trip Blank samples in the tally tables or CSV exports.
+    const rawBhText = String(s.bh || '').replace(/\s+/g,' ').trim();
+    if(/^Trip\s+Blank\b/i.test(rawBhText)) return;
+
     // Strip a "(Dup)" tag before computing the Borehole identity — a duplicate sample
     // must land in the SAME Borehole/round as its original, never a section of its own.
-    const cleanedBh = (s.bh || '').replace(DUP_TAG_RE, ' ').replace(/\s+/g,' ').trim();
+    const cleanedBh = rawBhText.replace(DUP_TAG_RE, ' ').replace(/\s+/g,' ').trim();
     const rawKey = normalizeBoreholeName(cleanedBh) || id;
     const bhKey = resolveBhAlias(rawKey);
     const aliasedRaw = state.boreholeAliases[rawKey]; // the exact text the user typed, if renamed
