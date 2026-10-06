@@ -338,6 +338,19 @@
     background:linear-gradient(90deg, #efe4d6 0%, #f7efe3 60%, #efe4d6 100%);
     color:#5c3d15;
   }
+  .gw-depth-controls{
+    display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;
+    margin-left:10px; padding:5px 8px; border:1px solid rgba(25,77,110,.22);
+    background:rgba(255,255,255,.62); border-radius:8px; vertical-align:middle;
+  }
+  .gw-depth-controls label{display:inline; margin:0; color:#385166; font-size:10.5px; font-weight:700;}
+  .gw-depth-controls input,.gw-depth-controls select{
+    width:auto; min-width:66px; padding:4px 6px; font-size:11px;
+    background:#fff; color:#23394d; border:1px solid #b8c8d5; border-radius:5px;
+  }
+  .gw-depth-controls input{width:72px;}
+  .gw-depth-preview{font-size:10.5px; font-weight:800; color:#255d42; white-space:nowrap;}
+  .gw-depth-preview.err{color:#a33a32;}
   .bh-row .bh-name{display:inline-block; vertical-align:middle;}
   .bh-row .bh-date{color:#556; font-weight:600; margin-left:6px;}
   .bh-row .bh-depth{color:#556; font-weight:600; margin-left:6px; font-size:12.5px;}
@@ -663,7 +676,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.5 · Manual sampling dates</span>
+  <span class="ver">v25.6 · GW screen depth + date logic</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1094,8 +1107,9 @@ async function loadReferenceFile(f){
    is never guessed, since the log alone doesn't say which screen length was installed. ---- */
 const END_OF_BOREHOLE_RE = /End\s+of\s+Borehole\s+at\s+(\d+(?:\.\d+)?)\s*m/i;
 const SCREEN_LEN_OPTIONS = [
-  {value:'3.05', label:'3.05m (10 ft screen)'},
-  {value:'1.52', label:'1.52m (5 ft screen)'}
+  {value:'1.524', label:'1 × 5 ft = 1.52m'},
+  {value:'3.048', label:'2 × 5 ft = 3.05m (default)'},
+  {value:'4.572', label:'3 × 5 ft = 4.57m'}
 ];
 state.boreholeLogEntries = state.boreholeLogEntries || [];
 let _logFileSeq = 0;
@@ -1127,7 +1141,7 @@ function parseBoreholeLogText(text, fileName){
       const fnM = fileName.match(BH_PREFIX_ANYWHERE_RE);
       bh = fnM ? normalizeBhLabel(fnM[0]) : fileName.replace(/\.[^.]+$/,'');
     }
-    found.push({bh, bottom, fileName, screenLen: null});
+    found.push({bh, bottom, fileName, screenLen: 3.048});
   });
   return found;
 }
@@ -1297,16 +1311,46 @@ function processNow(){
 document.getElementById('runBtn').addEventListener('click', processNow);
 document.getElementById('reportWrap').addEventListener('change', (e)=>{
   const picker = e.target.closest('.round-date-picker');
-  if(!picker) return;
-  const ids = (picker.dataset.dateSamples || '').split('|').filter(Boolean);
-  const picked = picker.value;
-  ids.forEach(id=>{
-    if(picked) state.sampleDateOverrides[id] = picked;
-    else delete state.sampleDateOverrides[id];
-  });
-  saveProjectState();
-  if(state.rerender) state.rerender();
+  if(picker){
+    const ids = (picker.dataset.dateSamples || '').split('|').filter(Boolean);
+    const picked = picker.value;
+    ids.forEach(id=>{
+      if(picked) state.sampleDateOverrides[id] = picked;
+      else delete state.sampleDateOverrides[id];
+    });
+    saveProjectState();
+    if(state.rerender) state.rerender();
+    return;
+  }
+
+  const gwBox = e.target.closest('.gw-depth-controls');
+  if(gwBox){
+    const key = gwBox.dataset.gwBh;
+    const bottomEl = gwBox.querySelector('.gw-bottom-input');
+    const screenEl = gwBox.querySelector('.gw-screen-count');
+    const bottom = bottomEl && bottomEl.value !== '' ? parseFloat(bottomEl.value) : null;
+    const screens = screenEl ? parseInt(screenEl.value,10) : 2;
+    state.gwWellSettings[key] = {
+      bottom: isFinite(bottom) ? bottom : null,
+      screens: Math.min(3, Math.max(1, screens || 2))
+    };
+    saveProjectState();
+    if(state.rerender) state.rerender();
+  }
 });
+document.getElementById('reportWrap').addEventListener('input', (e)=>{
+  const input = e.target.closest('.gw-bottom-input');
+  if(!input) return;
+  const box = input.closest('.gw-depth-controls');
+  const screens = parseInt((box.querySelector('.gw-screen-count')||{}).value || '2',10);
+  const interval = gwScreenInterval(input.value, screens);
+  const p = box.querySelector('.gw-depth-preview');
+  if(p){
+    p.textContent = input.value === '' ? 'Enter well depth' : (interval ? '(' + interval + ')' : 'Depth too shallow');
+    p.classList.toggle('err', input.value !== '' && !interval);
+  }
+});
+
 document.getElementById('resultMatrixSelect').addEventListener('change', ()=>{
   if(state.rerender) state.rerender();
   saveProjectState();
@@ -2840,19 +2884,25 @@ function parseSamplingDateRange(raw){
     jun:5,june:5,jul:6,july:6,aug:7,august:7,sep:8,sept:8,september:8,
     oct:9,october:9,nov:10,november:10,dec:11,december:11
   };
-  // 25 & 28-Sep-2026 | 25-28 Sep 2026 | 25 to 28 September 2026
-  let m = text.match(/^(\d{1,2})\s*(?:&|to|[-–—])\s*(\d{1,2})\s*[-\/\s]\s*([A-Za-z]{3,9})\s*[-\/\s]\s*(\d{4})$/i);
+  // "&" means two discrete sampling dates only:
+  //   25 & 28-Sep-2026 -> 25 Sep and 28 Sep (NOT the days in between).
+  // A dash / "to" means a continuous inclusive range:
+  //   25-28 Sep 2026 -> 25, 26, 27 and 28 Sep.
+  let m = text.match(/^(\d{1,2})\s*(&|to|[-–—])\s*(\d{1,2})\s*[-\/\s]\s*([A-Za-z]{3,9})\s*[-\/\s]\s*(\d{4})$/i);
   if(!m) return [];
-  const d1 = parseInt(m[1],10), d2 = parseInt(m[2],10);
-  const mon = months[m[3].toLowerCase()];
-  const year = parseInt(m[4],10);
+  const d1 = parseInt(m[1],10), sep = m[2].toLowerCase(), d2 = parseInt(m[3],10);
+  const mon = months[m[4].toLowerCase()];
+  const year = parseInt(m[5],10);
   if(mon == null || !year || d2 < d1 || d1 < 1 || d2 > 31) return [];
-  const out = [];
-  for(let day=d1; day<=d2; day++){
+  const validDay = day => {
     const dt = new Date(Date.UTC(year, mon, day));
-    if(dt.getUTCMonth() !== mon) return [];
-    out.push(day + ' ' + MONTH_NAMES[mon] + ' ' + year);
-  }
+    return dt.getUTCMonth() === mon;
+  };
+  if(!validDay(d1) || !validDay(d2)) return [];
+  const label = day => day + ' ' + MONTH_NAMES[mon] + ' ' + year;
+  if(sep === '&') return d1 === d2 ? [label(d1)] : [label(d1), label(d2)];
+  const out = [];
+  for(let day=d1; day<=d2; day++) out.push(label(day));
   return out;
 }
 function formatLongDate(str){
@@ -3052,6 +3102,17 @@ const UNKNOWN_DATE_KEY = '\u0000UNKNOWN';
 // guard) to the FINAL grouping key, so renaming "BH1a" to "BH1" merges it with any real BH1.
 state.boreholeAliases = state.boreholeAliases || {}; // oldCanonicalKey -> newRawName
 state.sampleDateOverrides = state.sampleDateOverrides || {}; // sample ID -> exact date picked from certificate range
+state.gwWellSettings = state.gwWellSettings || {}; // borehole key -> {bottom:number|null, screens:1|2|3}
+
+const FIVE_FT_SCREEN_M = 1.524;
+function gwScreenInterval(bottom, screens){
+  const b = parseFloat(bottom);
+  const n = Math.min(3, Math.max(1, parseInt(screens || 2, 10) || 2));
+  if(!isFinite(b) || b <= 0) return null;
+  const top = b - n * FIVE_FT_SCREEN_M;
+  if(top < 0) return null;
+  return top.toFixed(2) + '-' + b.toFixed(2) + 'm';
+}
 
 function resolveBhAlias(key, depth){
   depth = depth || 0;
@@ -3293,10 +3354,36 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
     const summaryLines = [SUMMARY_HEADER];
     const detailedLines = [DETAILED_HEADER];
 
+    // Groundwater wells use a 5-ft screen count.  Two screens is the default.
+    // When the user enters total well depth, that interval is applied to every sample
+    // under the well and therefore also flows into the CSV exports.
+    let gwControls = '';
+    if(!isSoil){
+      const saved = state.gwWellSettings[bh.name] || {};
+      const screens = saved.screens || 2;
+      const bottom = saved.bottom != null ? saved.bottom : '';
+      const interval = gwScreenInterval(bottom, screens);
+      if(interval){
+        bh.filteredRounds.forEach(r=>r.sampleIds.forEach(id=>{ samples[id]._depth = interval; }));
+      }
+      const preview = bottom === '' ? 'Enter well depth' : (interval ? '(' + interval + ')' : 'Depth too shallow');
+      gwControls = `<span class="gw-depth-controls" data-gw-bh="${esc(bh.name)}">
+        <label>Well depth (m)</label>
+        <input type="number" min="0" step="0.01" class="gw-bottom-input" value="${esc(bottom)}" placeholder="e.g. 5.45">
+        <label>5-ft screens</label>
+        <select class="gw-screen-count">
+          <option value="1" ${screens===1?'selected':''}>1</option>
+          <option value="2" ${screens===2?'selected':''}>2</option>
+          <option value="3" ${screens===3?'selected':''}>3</option>
+        </select>
+        <span class="gw-depth-preview${bottom!==''&&!interval?' err':''}">${esc(preview)}</span>
+      </span>`;
+    }
+
     // ONE header row per Borehole — never repeated, even across many sampling rounds.
     html += `<tr class="bh-row">
       <td colspan="4" data-copyable data-copy="${esc(bh.displayName)}">
-        <span class="bh-name">${esc(bh.displayName)}</span>${roundCount>1?`<span class="bh-rounds-count">${roundCount} rounds</span>`:''}
+        <span class="bh-name">${esc(bh.displayName)}</span>${roundCount>1?`<span class="bh-rounds-count">${roundCount} rounds</span>`:''}${gwControls}
         <button class="copy-btn rename-btn" data-rename-bh="${esc(bh.name)}" data-rename-current="${esc(bh.displayName)}" title="Rename this borehole — matching names elsewhere will be grouped under the new name">✏️ Rename</button>
         <button class="copy-btn" data-copy-block="${blockId}" title="Copy this borehole's full record as tab-separated text">📋 Copy block</button>
         <button class="copy-btn" data-csv-export="sum_${blockId}" title="Export this borehole as a Summary CSV for AutoCAD">⬇ SUMMARY CSV</button>
@@ -3463,7 +3550,7 @@ async function createProject(name){
   const now = Date.now();
   const id = await idbReq(tx.objectStore('projects').add({
     name, createdAt: now, updatedAt: now,
-    boreholeAliases: {}, sampleDateOverrides: {}, selectedTables: {}, selectedCats: {}, tableColors: {},
+    boreholeAliases: {}, sampleDateOverrides: {}, gwWellSettings: {}, selectedTables: {}, selectedCats: {}, tableColors: {},
     matrixOverride: 'auto', resultMatrix: 'ALL', texturePref: 'standard', boreholeLogEntries: [],
     pastedRefText: '', xlsxRefBlob: null, xlsxRefName: null
   }));
@@ -3511,6 +3598,7 @@ async function saveProjectStateNow(){
     updatedAt: Date.now(),
     boreholeAliases: state.boreholeAliases || {},
     sampleDateOverrides: state.sampleDateOverrides || {},
+    gwWellSettings: state.gwWellSettings || {},
     selectedTables: state.selectedTables || {},
     selectedCats: state.selectedCats || {},
     tableColors: state.tableColors || {},
@@ -3569,6 +3657,7 @@ function resetWorkspace(){
   state.files = [];
   state.boreholeAliases = {};
   state.sampleDateOverrides = {};
+  state.gwWellSettings = {};
   state.selectedTables = {};
   state.selectedCats = {};
   state.tableColors = {};
@@ -3634,6 +3723,7 @@ async function exportProjectFile(){
       settings: {
         boreholeAliases: state.boreholeAliases || {},
         sampleDateOverrides: state.sampleDateOverrides || {},
+        gwWellSettings: state.gwWellSettings || {},
         selectedTables: state.selectedTables || {},
         selectedCats: state.selectedCats || {},
         tableColors: state.tableColors || {},
@@ -3674,6 +3764,7 @@ async function importProjectFile(file){
     const s = payload.settings;
     state.boreholeAliases = s.boreholeAliases || {};
     state.sampleDateOverrides = s.sampleDateOverrides || {};
+    state.gwWellSettings = s.gwWellSettings || {};
     state.selectedTables = s.selectedTables || {};
     state.selectedCats = s.selectedCats || {};
     state.tableColors = s.tableColors || {};
@@ -3722,6 +3813,7 @@ async function openProject(id){
     state.currentProjectId = id;
     state.boreholeAliases = project.boreholeAliases || {};
     state.sampleDateOverrides = project.sampleDateOverrides || {};
+    state.gwWellSettings = project.gwWellSettings || {};
     state.selectedTables = project.selectedTables || {};
     state.selectedCats = project.selectedCats || {};
     state.tableColors = project.tableColors || {};
