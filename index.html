@@ -606,11 +606,19 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
     </div>
     <div class="row" style="margin-top:16px;">
       <div class="field">
-        <label>Sample matrix</label>
+        <label>Sample matrix parsing</label>
         <select id="matrixSelect">
-          <option value="auto" selected="">Auto-detect from PDF</option>
-          <option value="SOIL">Force: Soil</option>
-          <option value="GW">Force: Groundwater</option>
+          <option value="auto" selected="">Auto-detect (supports mixed Soil + Groundwater)</option>
+          <option value="SOIL">Force all: Soil</option>
+          <option value="GW">Force all: Groundwater</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Results to show</label>
+        <select id="resultMatrixSelect">
+          <option value="ALL" selected="">Both Soil + Groundwater</option>
+          <option value="SOIL">Soil only</option>
+          <option value="GW">Groundwater only</option>
         </select>
       </div>
       <div class="field">
@@ -649,7 +657,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.3</span>
+  <span class="ver">v25.4 · Soil/GW split</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1235,7 +1243,22 @@ function processNow(){
       merged.ctx.visibleTables = visibleTableSet();
       merged.ctx.visibleCats = visibleCatSet();
       merged.ctx.tableColors = Object.assign({}, state.tableColors);
-      renderReports(merged, wrap);
+
+      // A mixed certificate is rendered as two independent tally datasets.  The user can
+      // switch between Soil, Groundwater, or both without re-uploading the certificate.
+      const wantedMatrix = (document.getElementById('resultMatrixSelect')||{}).value || 'ALL';
+      const matrixOrder = wantedMatrix === 'ALL' ? ['SOIL','GW'] : [wantedMatrix];
+      let renderedMatrices = 0;
+      matrixOrder.forEach(mx=>{
+        const subset = {};
+        Object.keys(merged.samples).forEach(id=>{
+          if((merged.samples[id]._matrix || 'SOIL') === mx) subset[id] = merged.samples[id];
+        });
+        if(!Object.keys(subset).length) return;
+        const matrixCtx = Object.assign({}, merged.ctx, {matrix:mx});
+        const added = renderReports({samples:subset, ctx:matrixCtx}, wrap);
+        if(added) renderedMatrices++;
+      });
     }
 
     if(sitePlanFiles.length){
@@ -1266,6 +1289,10 @@ function processNow(){
   }
 }
 document.getElementById('runBtn').addEventListener('click', processNow);
+document.getElementById('resultMatrixSelect').addEventListener('change', ()=>{
+  if(state.rerender) state.rerender();
+  saveProjectState();
+});
 
 document.getElementById('copyBtn').addEventListener('click', ()=>{
   const text = document.getElementById('reportWrap').innerText;
@@ -2195,6 +2222,25 @@ function refSummary(ref){
   return parts.join(', ');
 }
 
+/* ---------- matrix detection ----------
+   Mixed COAs can contain Soil and Groundwater in the SAME PDF.  We classify each
+   result page independently so Soil rows never inherit Groundwater units/standards
+   (or vice versa).  The manual matrix override still forces the whole certificate. */
+function detectPageMatrix(rows, fallback){
+  const text = (rows || []).map(r=>typeof r==='string' ? r : r.text).join('\n');
+  const hasSoil =
+    /\b(?:Metals|VOCs?|BTEX|PHCs?|PAHs?|PCBs?|Grain\s+Size)\s+in\s+Soil\b/i.test(text) ||
+    /\bSoil\s+Standards?\b/i.test(text) ||
+    /Concentration\s*\(\s*(?:µ|u)?g\s*\/\s*g\s*\)/i.test(text);
+  const hasGW =
+    /\b(?:Metals|VOCs?|BTEX|PHCs?|PAHs?|PCBs?)\s+in\s+Water\b/i.test(text) ||
+    /\bGround\s*Water\s+Standards?\b/i.test(text) ||
+    /Concentration\s*\(\s*(?:µ|u)?g\s*\/\s*L\s*\)/i.test(text);
+  if(hasGW && !hasSoil) return 'GW';
+  if(hasSoil && !hasGW) return 'SOIL';
+  return fallback || 'SOIL';
+}
+
 /* ---------- main processing ---------- */
 function processCertificate(pages, dateMap){
   const allRows = pages.flat().map(r => typeof r === 'string' ? r : r.text);
@@ -2203,8 +2249,9 @@ function processCertificate(pages, dateMap){
   const matrixOverride = document.getElementById('matrixSelect').value;
   let matrix = 'SOIL';
   if(matrixOverride === 'auto'){
-    const isWater = allRows.some(r=>/Water Sample\(s\)/i.test(r)) || allRows.some(r=>/\bin Water\b/i.test(r)) || allRows.some(r=>/screen interval/i.test(r));
-    matrix = isWater ? 'GW' : 'SOIL';
+    const hasSoil = allRows.some(r=>/\bin Soil\b/i.test(r)) || allRows.some(r=>/\bSoil\s+Standards?\b/i.test(r));
+    const hasWater = allRows.some(r=>/\bin Water\b/i.test(r)) || allRows.some(r=>/\bGround\s*Water\s+Standards?\b/i.test(r));
+    matrix = hasSoil && hasWater ? 'MIXED' : (hasWater ? 'GW' : 'SOIL');
   } else {
     matrix = matrixOverride;
   }
@@ -2222,6 +2269,9 @@ function processCertificate(pages, dateMap){
   // group (the header block directly above them). Nothing is carried across pages or groups,
   // so a page whose header fails to parse can never inherit another page's borehole names.
   pages.forEach((rows)=>{
+    const pageMatrix = matrixOverride === 'auto'
+      ? detectPageMatrix(rows, matrix === 'MIXED' ? 'SOIL' : matrix)
+      : matrix;
     let group = null;   // {ids, idPositions, bh, depth} — current sample-ID header block on this page
     let localCat = null;
 
@@ -2251,7 +2301,8 @@ function processCertificate(pages, dateMap){
         });
         group = {ids: idRow, idPositions, bh: null, depth: null};
         idRow.forEach(id=>{
-          if(!samples[id]) samples[id] = {bh:null, depth:null, isDup:false, categories:{}, exceed:{}};
+          if(!samples[id]) samples[id] = {bh:null, depth:null, isDup:false, categories:{}, exceed:{}, _matrix:pageMatrix};
+          else if(matrixOverride === 'auto') samples[id]._matrix = pageMatrix;
         });
         return;
       }
@@ -2384,6 +2435,9 @@ function mergeCertificates(perFile, bhDepthMap){
       const s = fileSamples[id];
       s._jobNo = ctx.jobNo;
       s._fileName = file.name;
+      s._matrix = s._matrix || (ctx.matrix === 'MIXED'
+        ? (/\((?:MW|GW)\)/i.test(s.bh||'') ? 'GW' : 'SOIL')
+        : ctx.matrix);
       s._date = s.date || dateMapLookup(id, ctx);
       // Depth resolution, most specific source first: the certificate's own text, then the
       // per-sample-ID reference lookup, then — new — a simple per-borehole-NAME reference
@@ -3339,7 +3393,7 @@ async function createProject(name){
   const id = await idbReq(tx.objectStore('projects').add({
     name, createdAt: now, updatedAt: now,
     boreholeAliases: {}, selectedTables: {}, selectedCats: {}, tableColors: {},
-    matrixOverride: 'auto', texturePref: 'standard', boreholeLogEntries: [],
+    matrixOverride: 'auto', resultMatrix: 'ALL', texturePref: 'standard', boreholeLogEntries: [],
     pastedRefText: '', xlsxRefBlob: null, xlsxRefName: null
   }));
   return id;
@@ -3389,6 +3443,7 @@ async function saveProjectStateNow(){
     selectedCats: state.selectedCats || {},
     tableColors: state.tableColors || {},
     matrixOverride: (document.getElementById('matrixSelect')||{}).value || 'auto',
+    resultMatrix: (document.getElementById('resultMatrixSelect')||{}).value || 'ALL',
     texturePref: (document.getElementById('textureSelect')||{}).value || 'standard',
     boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen})),
     pastedRefText: (document.getElementById('pasteRef')||{}).value || '',
@@ -3449,6 +3504,8 @@ function resetWorkspace(){
   state.pastedRef = null;
   state.xlsxRefBlob = null;
   state.xlsxRefName = null;
+  if(document.getElementById('matrixSelect')) document.getElementById('matrixSelect').value = 'auto';
+  if(document.getElementById('resultMatrixSelect')) document.getElementById('resultMatrixSelect').value = 'ALL';
   renderFileChips();
   renderTableChecks();
   renderCatChecks();
@@ -3507,6 +3564,7 @@ async function exportProjectFile(){
         selectedCats: state.selectedCats || {},
         tableColors: state.tableColors || {},
         matrixOverride: (document.getElementById('matrixSelect')||{}).value || 'auto',
+        resultMatrix: (document.getElementById('resultMatrixSelect')||{}).value || 'ALL',
         texturePref: (document.getElementById('textureSelect')||{}).value || 'standard',
         boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen})),
         pastedRefText: (document.getElementById('pasteRef')||{}).value || '',
@@ -3546,6 +3604,7 @@ async function importProjectFile(file){
     state.tableColors = s.tableColors || {};
     state.boreholeLogEntries = s.boreholeLogEntries || [];
     if(document.getElementById('matrixSelect')) document.getElementById('matrixSelect').value = s.matrixOverride || 'auto';
+    if(document.getElementById('resultMatrixSelect')) document.getElementById('resultMatrixSelect').value = s.resultMatrix || 'ALL';
     if(document.getElementById('textureSelect')) document.getElementById('textureSelect').value = s.texturePref || 'standard';
 
     const fileObjs = payload.files.map(f=> new File([base64ToBlob(f.base64, f.type)], f.name, {type: f.type||''}));
@@ -3592,6 +3651,7 @@ async function openProject(id){
     state.tableColors = project.tableColors || {};
     state.boreholeLogEntries = project.boreholeLogEntries || [];
     if(document.getElementById('matrixSelect')) document.getElementById('matrixSelect').value = project.matrixOverride || 'auto';
+    if(document.getElementById('resultMatrixSelect')) document.getElementById('resultMatrixSelect').value = project.resultMatrix || 'ALL';
     if(document.getElementById('textureSelect')) document.getElementById('textureSelect').value = project.texturePref || 'standard';
 
     if(files.length){
