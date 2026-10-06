@@ -352,6 +352,12 @@
   }
   tr.round-subhead .round-date{font-weight:700; letter-spacing:0.02em;}
   tr.round-subhead .round-job{color:#7a8798; font-style:italic; margin-left:4px;}
+  tr.round-subhead .round-range{color:#7a5260; font-weight:700;}
+  tr.round-subhead .round-date-picker{
+    width:auto; min-width:190px; margin-left:10px; padding:4px 8px;
+    background:#fff; color:#3a2630; border:1px solid #d9bcc7; border-radius:6px;
+    font-size:11.5px; vertical-align:middle;
+  }
   tr.cat-head td{background:#f4f6fa; padding:7px 12px 6px;}
   tr.cat-head td:first-child{padding-left:14px;}
   td.sid{
@@ -657,7 +663,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.4.1 · Soil/GW split + ORP CSV</span>
+  <span class="ver">v25.5 · Manual sampling dates</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1289,6 +1295,18 @@ function processNow(){
   }
 }
 document.getElementById('runBtn').addEventListener('click', processNow);
+document.getElementById('reportWrap').addEventListener('change', (e)=>{
+  const picker = e.target.closest('.round-date-picker');
+  if(!picker) return;
+  const ids = (picker.dataset.dateSamples || '').split('|').filter(Boolean);
+  const picked = picker.value;
+  ids.forEach(id=>{
+    if(picked) state.sampleDateOverrides[id] = picked;
+    else delete state.sampleDateOverrides[id];
+  });
+  saveProjectState();
+  if(state.rerender) state.rerender();
+});
 document.getElementById('resultMatrixSelect').addEventListener('change', ()=>{
   if(state.rerender) state.rerender();
   saveProjectState();
@@ -2438,7 +2456,11 @@ function mergeCertificates(perFile, bhDepthMap){
       s._matrix = s._matrix || (ctx.matrix === 'MIXED'
         ? (/\((?:MW|GW)\)/i.test(s.bh||'') ? 'GW' : 'SOIL')
         : ctx.matrix);
-      s._date = s.date || dateMapLookup(id, ctx);
+      const rangeChoices = parseSamplingDateRange(ctx.dateRangeRaw);
+      s._dateRange = rangeChoices.length > 1 ? ctx.dateRangeRaw : null;
+      s._date = (state.sampleDateOverrides && state.sampleDateOverrides[id])
+        || s.date
+        || dateMapLookup(id, ctx);
       // Depth resolution, most specific source first: the certificate's own text, then the
       // per-sample-ID reference lookup, then — new — a simple per-borehole-NAME reference
       // lookup (for sources that only give "Borehole | Depth" with no sample IDs at all).
@@ -2806,6 +2828,39 @@ function fmtCsvDate(str){
   const d = new Date(t);
   return d.getUTCDate() + '-' + MONTH_ABBR[d.getUTCMonth()] + '-' + String(d.getUTCFullYear()).slice(-2);
 }
+
+// Fisher sometimes prints only a sampling RANGE (for example "25 & 28-Sep-2026").
+// Keep that range visible, but let the user assign one exact day inside it to each
+// borehole/round.  The range is inclusive: 25, 26, 27 and 28 September in that example.
+function parseSamplingDateRange(raw){
+  if(!raw) return [];
+  const text = String(raw).replace(/,/g,' ').replace(/\s+/g,' ').trim();
+  const months = {
+    jan:0,january:0,feb:1,february:1,mar:2,march:2,apr:3,april:3,may:4,
+    jun:5,june:5,jul:6,july:6,aug:7,august:7,sep:8,sept:8,september:8,
+    oct:9,october:9,nov:10,november:10,dec:11,december:11
+  };
+  // 25 & 28-Sep-2026 | 25-28 Sep 2026 | 25 to 28 September 2026
+  let m = text.match(/^(\d{1,2})\s*(?:&|to|[-–—])\s*(\d{1,2})\s*[-\/\s]\s*([A-Za-z]{3,9})\s*[-\/\s]\s*(\d{4})$/i);
+  if(!m) return [];
+  const d1 = parseInt(m[1],10), d2 = parseInt(m[2],10);
+  const mon = months[m[3].toLowerCase()];
+  const year = parseInt(m[4],10);
+  if(mon == null || !year || d2 < d1 || d1 < 1 || d2 > 31) return [];
+  const out = [];
+  for(let day=d1; day<=d2; day++){
+    const dt = new Date(Date.UTC(year, mon, day));
+    if(dt.getUTCMonth() !== mon) return [];
+    out.push(day + ' ' + MONTH_NAMES[mon] + ' ' + year);
+  }
+  return out;
+}
+function formatLongDate(str){
+  const t = parseDateLoose(str);
+  if(t == null) return str || '';
+  const d = new Date(t);
+  return d.getUTCDate() + ' ' + MONTH_NAMES[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
 function safeFileName(s){ return String(s).replace(/[^\w.-]+/g,'_').replace(/^_+|_+$/g,''); }
 function downloadTextFile(name, text){
   const blob = new Blob([text], {type:'text/csv;charset=utf-8'});
@@ -2996,6 +3051,7 @@ const UNKNOWN_DATE_KEY = '\u0000UNKNOWN';
 // the name the user wants used instead; resolveBhAlias follows that mapping (with a cycle
 // guard) to the FINAL grouping key, so renaming "BH1a" to "BH1" merges it with any real BH1.
 state.boreholeAliases = state.boreholeAliases || {}; // oldCanonicalKey -> newRawName
+state.sampleDateOverrides = state.sampleDateOverrides || {}; // sample ID -> exact date picked from certificate range
 
 function resolveBhAlias(key, depth){
   depth = depth || 0;
@@ -3032,9 +3088,15 @@ function buildBoreholeHierarchy(samples){
     }
     const bh = boreholes[bhKey];
 
-    const dateKey = s._date || UNKNOWN_DATE_KEY;
+    const dateKey = s._date
+      || (s._dateRange ? ('\u0000RANGE|' + (s._jobNo||'') + '|' + s._dateRange) : UNKNOWN_DATE_KEY);
     if(!bh.rounds[dateKey]){
-      bh.rounds[dateKey] = {date: s._date || null, labJob: s._jobNo || null, sampleIds: []};
+      bh.rounds[dateKey] = {
+        date: s._date || null,
+        dateRange: s._dateRange || null,
+        labJob: s._jobNo || null,
+        sampleIds: []
+      };
       bh.roundOrder.push(dateKey);
     }
     bh.rounds[dateKey].sampleIds.push(id);
@@ -3058,8 +3120,10 @@ function buildBoreholeHierarchy(samples){
     // Rounds sorted chronologically, oldest first; rounds with no resolvable date
     // ("Unknown Date") always sort last rather than being guessed into a position.
     bh.roundOrder.sort((ka,kb)=>{
-      if(ka === UNKNOWN_DATE_KEY) return kb === UNKNOWN_DATE_KEY ? 0 : 1;
-      if(kb === UNKNOWN_DATE_KEY) return -1;
+      const aOpen = ka === UNKNOWN_DATE_KEY || String(ka).startsWith('\u0000RANGE|');
+      const bOpen = kb === UNKNOWN_DATE_KEY || String(kb).startsWith('\u0000RANGE|');
+      if(aOpen) return bOpen ? 0 : 1;
+      if(bOpen) return -1;
       const ta = parseDateLoose(bh.rounds[ka].date);
       const tb = parseDateLoose(bh.rounds[kb].date);
       if(ta != null && tb != null) return ta - tb;
@@ -3240,14 +3304,21 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
       </td></tr>`;
 
     bh.filteredRounds.forEach(round=>{
-      const dateLabel = round.date || 'Unknown Date';
+      const dateLabel = round.date ? formatLongDate(round.date) : (round.dateRange || 'Unknown Date');
       if(!round.date) missingDate = true;
       const jobLabel = round.labJob ? `Job ${round.labJob}` : '';
-      const csvDate = round.date ? fmtCsvDate(round.date) : 'Unknown Date';
+      const csvDate = round.date ? formatLongDate(round.date) : (round.dateRange || 'Unknown Date');
+      const rangeChoices = parseSamplingDateRange(round.dateRange);
+      const picker = rangeChoices.length
+        ? ` <select class="round-date-picker" data-date-samples="${esc(round.sampleIds.join('|'))}" title="Choose the exact sampling date for this borehole">
+             <option value="">Choose exact date…</option>
+             ${rangeChoices.map(d=>`<option value="${esc(d)}" ${round.date===d?'selected':''}>${esc(d)}</option>`).join('')}
+           </select>`
+        : '';
 
       html += `<tr class="round-subhead">
         <td colspan="4" data-copyable data-copy="${esc(dateLabel)}">
-          <span class="round-date">${esc(dateLabel)}</span>${jobLabel?` <span class="round-job">(${esc(jobLabel)})</span>`:''}
+          <span class="${round.date?'round-date':'round-range'}">${esc(dateLabel)}</span>${jobLabel?` <span class="round-job">(${esc(jobLabel)})</span>`:''}${picker}
         </td></tr>`;
       blockTsvRows.push([dateLabel + (jobLabel?' ('+jobLabel+')':''), '', '', '']);
       blockClipRows.push(`<tr><td colspan="4" style="${CLIP_TD}background:${clipTheme.round};color:${clipTheme.roundText};font-weight:bold;">${esc(dateLabel + (jobLabel?' ('+jobLabel+')':''))}</td></tr>`);
@@ -3392,7 +3463,7 @@ async function createProject(name){
   const now = Date.now();
   const id = await idbReq(tx.objectStore('projects').add({
     name, createdAt: now, updatedAt: now,
-    boreholeAliases: {}, selectedTables: {}, selectedCats: {}, tableColors: {},
+    boreholeAliases: {}, sampleDateOverrides: {}, selectedTables: {}, selectedCats: {}, tableColors: {},
     matrixOverride: 'auto', resultMatrix: 'ALL', texturePref: 'standard', boreholeLogEntries: [],
     pastedRefText: '', xlsxRefBlob: null, xlsxRefName: null
   }));
@@ -3439,6 +3510,7 @@ async function saveProjectStateNow(){
     id: projectId,
     updatedAt: Date.now(),
     boreholeAliases: state.boreholeAliases || {},
+    sampleDateOverrides: state.sampleDateOverrides || {},
     selectedTables: state.selectedTables || {},
     selectedCats: state.selectedCats || {},
     tableColors: state.tableColors || {},
@@ -3496,6 +3568,7 @@ function resetWorkspace(){
   state.currentProjectId = null;
   state.files = [];
   state.boreholeAliases = {};
+  state.sampleDateOverrides = {};
   state.selectedTables = {};
   state.selectedCats = {};
   state.tableColors = {};
@@ -3560,6 +3633,7 @@ async function exportProjectFile(){
       appName: 'COA Tally Processor', exportVersion: 1, projectName, exportedAt: Date.now(),
       settings: {
         boreholeAliases: state.boreholeAliases || {},
+        sampleDateOverrides: state.sampleDateOverrides || {},
         selectedTables: state.selectedTables || {},
         selectedCats: state.selectedCats || {},
         tableColors: state.tableColors || {},
@@ -3599,6 +3673,7 @@ async function importProjectFile(file){
     resetWorkspace();
     const s = payload.settings;
     state.boreholeAliases = s.boreholeAliases || {};
+    state.sampleDateOverrides = s.sampleDateOverrides || {};
     state.selectedTables = s.selectedTables || {};
     state.selectedCats = s.selectedCats || {};
     state.tableColors = s.tableColors || {};
@@ -3646,6 +3721,7 @@ async function openProject(id){
     resetWorkspace();
     state.currentProjectId = id;
     state.boreholeAliases = project.boreholeAliases || {};
+    state.sampleDateOverrides = project.sampleDateOverrides || {};
     state.selectedTables = project.selectedTables || {};
     state.selectedCats = project.selectedCats || {};
     state.tableColors = project.tableColors || {};
