@@ -657,7 +657,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.4 · Soil/GW split</span>
+  <span class="ver">v25.4.1 · Soil/GW split + ORP CSV</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -3106,12 +3106,15 @@ function renderSampleRowsForLabel(id, s, label, catSet){
   // ---- data for the two AutoCAD CSV export modes (comma-delimited, built by the caller) ----
   // Summary: all tested groups (lab names, no markers) + which groups exceeded, or the
   // compliance text when nothing did. Detailed: one entry per individual exceeded parameter.
-  const csvAnalytes = categoryGroups(cats).map(group=>group.key==='ORP' ? 'ORP' : (CSV_GROUP_NAME[group.key]||group.label)).join(', ');
-  const csvExceededGroups = hasExc ? categoryGroups(excCats).map(group=>group.key==='ORP' ? 'ORP' : (CSV_GROUP_NAME[group.key]||group.label)).join(', ') : '';
+  const csvAnalytes = categoryGroups(cats).map(group=>group.key==='ORP' ? group.label : (CSV_GROUP_NAME[group.key]||group.label)).join(', ');
+  const csvExceededGroups = hasExc ? categoryGroups(excCats).map(group=>group.key==='ORP' ? group.label : (CSV_GROUP_NAME[group.key]||group.label)).join(', ') : '';
   const csvComplianceText = hasExc ? '' : ('<'+label+' SCS');
+  const excGroupLabelByMember = {};
+  categoryGroups(excCats).forEach(group=>group.members.forEach(member=>{ excGroupLabelByMember[member] = group.label; }));
   const csvDetailRows = hasExc
     ? excCatDetails.flatMap(({cat, params})=>params.map(p=>({
-        group: CSV_GROUP_NAME[cat]||cat, parameter: p.name, result: String(p.val), standard: String(p.std)
+        group: ORP_MEMBERS.includes(cat) ? (excGroupLabelByMember[cat] || 'ORP') : (CSV_GROUP_NAME[cat]||cat),
+        parameter: p.name, result: String(p.val), standard: String(p.std)
       })))
     : [{group:'', parameter:'', result:'', standard:''}]; // one blank-detail row when nothing exceeded
   const csvData = {
