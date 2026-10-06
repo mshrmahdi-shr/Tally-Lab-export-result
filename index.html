@@ -338,19 +338,39 @@
     background:linear-gradient(90deg, #efe4d6 0%, #f7efe3 60%, #efe4d6 100%);
     color:#5c3d15;
   }
-  .gw-depth-controls{
-    display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;
-    margin-left:10px; padding:5px 8px; border:1px solid rgba(25,77,110,.22);
-    background:rgba(255,255,255,.62); border-radius:8px; vertical-align:middle;
+  /* Floating groundwater depth worksheet — compact Excel-like entry panel */
+  #gwDepthPanel{
+    position:fixed; left:14px; top:118px; z-index:55; width:420px; max-width:calc(100vw - 28px);
+    max-height:calc(100vh - 150px); overflow:auto; display:none;
+    background:#111318f2; border:1px solid #343841; border-radius:12px;
+    box-shadow:0 14px 40px rgba(0,0,0,.5); backdrop-filter:blur(7px);
   }
-  .gw-depth-controls label{display:inline; margin:0; color:#385166; font-size:10.5px; font-weight:700;}
-  .gw-depth-controls input,.gw-depth-controls select{
-    width:auto; min-width:66px; padding:4px 6px; font-size:11px;
-    background:#fff; color:#23394d; border:1px solid #b8c8d5; border-radius:5px;
+  #gwDepthPanel.on{display:block;}
+  #gwDepthPanel .gw-sheet-head{
+    position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; align-items:center;
+    padding:10px 12px; background:#181b22; border-bottom:1px solid #343841;
   }
-  .gw-depth-controls input{width:72px;}
-  .gw-depth-preview{font-size:10.5px; font-weight:800; color:#255d42; white-space:nowrap;}
-  .gw-depth-preview.err{color:#a33a32;}
+  #gwDepthPanel .gw-sheet-title{font-size:12px; font-weight:800; color:var(--accent-soft); letter-spacing:.04em;}
+  #gwDepthPanel .gw-sheet-note{font-size:10px; color:var(--muted);}
+  #gwDepthPanel table{width:100%; border-collapse:collapse; table-layout:fixed; font-size:11px;}
+  #gwDepthPanel th{
+    position:sticky; top:42px; z-index:1; background:#222630; color:#cfd6df; font-size:10px;
+    text-transform:uppercase; letter-spacing:.04em; padding:7px 6px; border:1px solid #3a3f49;
+  }
+  #gwDepthPanel td{padding:0; border:1px solid #353a44; background:#171a20;}
+  #gwDepthPanel td:first-child{padding:6px 7px; font-weight:800; color:#e8edf2; width:28%;}
+  #gwDepthPanel input,#gwDepthPanel select{
+    width:100%; border:0; border-radius:0; padding:7px 6px; background:#101216; color:#edf1f5;
+    font:12px var(--mono); box-shadow:none; outline:none;
+  }
+  #gwDepthPanel input:focus,#gwDepthPanel select:focus{
+    background:#20252d; box-shadow:inset 0 0 0 2px var(--accent);
+  }
+  #gwDepthPanel .gw-sheet-interval{padding:6px 7px; color:#8fd2a2; font-family:var(--mono); font-size:10.5px;}
+  #gwDepthPanel .gw-sheet-interval.err{color:#e2938a;}
+  @media(max-width:1100px){
+    #gwDepthPanel{width:360px; opacity:.97;}
+  }
   .bh-row .bh-name{display:inline-block; vertical-align:middle;}
   .bh-row .bh-date{color:#556; font-weight:600; margin-left:6px;}
   .bh-row .bh-depth{color:#556; font-weight:600; margin-left:6px; font-size:12.5px;}
@@ -669,6 +689,19 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 </main>
 
+<div id="gwDepthPanel" aria-label="Groundwater well depth worksheet">
+  <div class="gw-sheet-head">
+    <div>
+      <div class="gw-sheet-title">💧 Groundwater Well Depths</div>
+      <div class="gw-sheet-note">Type depth → Enter moves to next well · 5-ft screens default = 2</div>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Well</th><th>Total depth (m)</th><th>Screens</th><th>Interval</th></tr></thead>
+    <tbody id="gwDepthRows"></tbody>
+  </table>
+</div>
+
 <div id="bhNav">
   <div id="bhNavPanel"></div>
   <button id="bhNavToggle" type="button">📍 Boreholes</button>
@@ -676,7 +709,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.6.1 · Trip Blank filtered</span>
+  <span class="ver">v25.7 · Floating GW depth worksheet</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1248,6 +1281,8 @@ function processNow(){
 
     const wrap = document.getElementById('reportWrap');
     wrap.innerHTML = '';
+    const gwPanel = document.getElementById('gwDepthPanel');
+    if(gwPanel) gwPanel.classList.remove('on');
     window._copyBlocks = {};
     window._csvExports = {};
     let debugCombined = '';
@@ -1276,6 +1311,7 @@ function processNow(){
         });
         if(!Object.keys(subset).length) return;
         const matrixCtx = Object.assign({}, merged.ctx, {matrix:mx});
+        if(mx === 'GW') buildGwDepthPanel(subset);
         const added = renderReports({samples:subset, ctx:matrixCtx}, wrap);
         if(added) renderedMatrices++;
       });
@@ -1311,45 +1347,102 @@ function processNow(){
 document.getElementById('runBtn').addEventListener('click', processNow);
 document.getElementById('reportWrap').addEventListener('change', (e)=>{
   const picker = e.target.closest('.round-date-picker');
-  if(picker){
-    const ids = (picker.dataset.dateSamples || '').split('|').filter(Boolean);
-    const picked = picker.value;
-    ids.forEach(id=>{
-      if(picked) state.sampleDateOverrides[id] = picked;
-      else delete state.sampleDateOverrides[id];
-    });
-    saveProjectState();
-    if(state.rerender) state.rerender();
+  if(!picker) return;
+  const ids = (picker.dataset.dateSamples || '').split('|').filter(Boolean);
+  const picked = picker.value;
+  ids.forEach(id=>{
+    if(picked) state.sampleDateOverrides[id] = picked;
+    else delete state.sampleDateOverrides[id];
+  });
+  saveProjectState();
+  if(state.rerender) state.rerender();
+});
+
+function buildGwDepthPanel(samples){
+  const panel = document.getElementById('gwDepthPanel');
+  const body = document.getElementById('gwDepthRows');
+  if(!panel || !body) return;
+  const boreholes = buildBoreholeHierarchy(samples);
+  if(!boreholes.length){
+    body.innerHTML = '';
+    panel.classList.remove('on');
     return;
   }
+  body.innerHTML = boreholes.map((bh, i)=>{
+    const saved = state.gwWellSettings[bh.name] || {};
+    const screens = saved.screens || 2;
+    const bottom = saved.bottom != null ? saved.bottom : '';
+    const interval = gwScreenInterval(bottom, screens);
+    const intervalText = bottom === '' ? '—' : (interval || 'Too shallow');
+    return `<tr data-gw-row="${i}" data-gw-bh="${esc(bh.name)}">
+      <td>${esc(bh.displayName)}</td>
+      <td><input class="gw-sheet-depth" data-gw-index="${i}" type="number" min="0" step="0.01" value="${esc(bottom)}" placeholder="5.45" inputmode="decimal"></td>
+      <td><select class="gw-sheet-screens">
+        <option value="1" ${screens===1?'selected':''}>1</option>
+        <option value="2" ${screens===2?'selected':''}>2</option>
+        <option value="3" ${screens===3?'selected':''}>3</option>
+      </select></td>
+      <td class="gw-sheet-interval${bottom!==''&&!interval?' err':''}">${esc(intervalText)}</td>
+    </tr>`;
+  }).join('');
+  panel.classList.add('on');
+}
 
-  const gwBox = e.target.closest('.gw-depth-controls');
-  if(gwBox){
-    const key = gwBox.dataset.gwBh;
-    const bottomEl = gwBox.querySelector('.gw-bottom-input');
-    const screenEl = gwBox.querySelector('.gw-screen-count');
-    const bottom = bottomEl && bottomEl.value !== '' ? parseFloat(bottomEl.value) : null;
-    const screens = screenEl ? parseInt(screenEl.value,10) : 2;
-    state.gwWellSettings[key] = {
-      bottom: isFinite(bottom) ? bottom : null,
-      screens: Math.min(3, Math.max(1, screens || 2))
-    };
-    saveProjectState();
+function saveGwSheetRow(row){
+  if(!row) return;
+  const key = row.dataset.gwBh;
+  const depthInput = row.querySelector('.gw-sheet-depth');
+  const screenSelect = row.querySelector('.gw-sheet-screens');
+  const bottom = depthInput && depthInput.value !== '' ? parseFloat(depthInput.value) : null;
+  const screens = screenSelect ? parseInt(screenSelect.value,10) : 2;
+  state.gwWellSettings[key] = {
+    bottom: isFinite(bottom) ? bottom : null,
+    screens: Math.min(3, Math.max(1, screens || 2))
+  };
+  const interval = gwScreenInterval(bottom, screens);
+  const cell = row.querySelector('.gw-sheet-interval');
+  if(cell){
+    cell.textContent = bottom == null ? '—' : (interval || 'Too shallow');
+    cell.classList.toggle('err', bottom != null && !interval);
+  }
+  saveProjectState();
+}
+
+const gwDepthPanel = document.getElementById('gwDepthPanel');
+if(gwDepthPanel){
+  gwDepthPanel.addEventListener('input', (e)=>{
+    const input = e.target.closest('.gw-sheet-depth');
+    if(!input) return;
+    const row = input.closest('tr[data-gw-bh]');
+    const screens = parseInt((row.querySelector('.gw-sheet-screens')||{}).value || '2',10);
+    const interval = gwScreenInterval(input.value, screens);
+    const cell = row.querySelector('.gw-sheet-interval');
+    if(cell){
+      cell.textContent = input.value === '' ? '—' : (interval || 'Too shallow');
+      cell.classList.toggle('err', input.value !== '' && !interval);
+    }
+  });
+  gwDepthPanel.addEventListener('change', (e)=>{
+    const row = e.target.closest('tr[data-gw-bh]');
+    if(!row) return;
+    saveGwSheetRow(row);
+    if(e.target.matches('.gw-sheet-screens') && state.rerender) state.rerender();
+  });
+  gwDepthPanel.addEventListener('keydown', (e)=>{
+    const input = e.target.closest('.gw-sheet-depth');
+    if(!input || e.key !== 'Enter') return;
+    e.preventDefault();
+    const row = input.closest('tr[data-gw-bh]');
+    const idx = parseInt(input.dataset.gwIndex,10);
+    saveGwSheetRow(row);
+    const nextIndex = idx + 1;
     if(state.rerender) state.rerender();
-  }
-});
-document.getElementById('reportWrap').addEventListener('input', (e)=>{
-  const input = e.target.closest('.gw-bottom-input');
-  if(!input) return;
-  const box = input.closest('.gw-depth-controls');
-  const screens = parseInt((box.querySelector('.gw-screen-count')||{}).value || '2',10);
-  const interval = gwScreenInterval(input.value, screens);
-  const p = box.querySelector('.gw-depth-preview');
-  if(p){
-    p.textContent = input.value === '' ? 'Enter well depth' : (interval ? '(' + interval + ')' : 'Depth too shallow');
-    p.classList.toggle('err', input.value !== '' && !interval);
-  }
-});
+    setTimeout(()=>{
+      const next = document.querySelector('.gw-sheet-depth[data-gw-index="'+nextIndex+'"]');
+      if(next){ next.focus(); next.select(); }
+    }, 0);
+  });
+}
 
 document.getElementById('resultMatrixSelect').addEventListener('change', ()=>{
   if(state.rerender) state.rerender();
@@ -3359,36 +3452,20 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
     const summaryLines = [SUMMARY_HEADER];
     const detailedLines = [DETAILED_HEADER];
 
-    // Groundwater wells use a 5-ft screen count.  Two screens is the default.
-    // When the user enters total well depth, that interval is applied to every sample
-    // under the well and therefore also flows into the CSV exports.
-    let gwControls = '';
+    // Groundwater depth is entered once in the floating worksheet at the left.
+    // Apply the saved interval silently to every sample under this well.
     if(!isSoil){
       const saved = state.gwWellSettings[bh.name] || {};
-      const screens = saved.screens || 2;
-      const bottom = saved.bottom != null ? saved.bottom : '';
-      const interval = gwScreenInterval(bottom, screens);
+      const interval = gwScreenInterval(saved.bottom, saved.screens || 2);
       if(interval){
         bh.filteredRounds.forEach(r=>r.sampleIds.forEach(id=>{ samples[id]._depth = interval; }));
       }
-      const preview = bottom === '' ? 'Enter well depth' : (interval ? '(' + interval + ')' : 'Depth too shallow');
-      gwControls = `<span class="gw-depth-controls" data-gw-bh="${esc(bh.name)}">
-        <label>Well depth (m)</label>
-        <input type="number" min="0" step="0.01" class="gw-bottom-input" value="${esc(bottom)}" placeholder="e.g. 5.45">
-        <label>5-ft screens</label>
-        <select class="gw-screen-count">
-          <option value="1" ${screens===1?'selected':''}>1</option>
-          <option value="2" ${screens===2?'selected':''}>2</option>
-          <option value="3" ${screens===3?'selected':''}>3</option>
-        </select>
-        <span class="gw-depth-preview${bottom!==''&&!interval?' err':''}">${esc(preview)}</span>
-      </span>`;
     }
 
     // ONE header row per Borehole — never repeated, even across many sampling rounds.
     html += `<tr class="bh-row">
       <td colspan="4" data-copyable data-copy="${esc(bh.displayName)}">
-        <span class="bh-name">${esc(bh.displayName)}</span>${roundCount>1?`<span class="bh-rounds-count">${roundCount} rounds</span>`:''}${gwControls}
+        <span class="bh-name">${esc(bh.displayName)}</span>${roundCount>1?`<span class="bh-rounds-count">${roundCount} rounds</span>`:''}
         <button class="copy-btn rename-btn" data-rename-bh="${esc(bh.name)}" data-rename-current="${esc(bh.displayName)}" title="Rename this borehole — matching names elsewhere will be grouped under the new name">✏️ Rename</button>
         <button class="copy-btn" data-copy-block="${blockId}" title="Copy this borehole's full record as tab-separated text">📋 Copy block</button>
         <button class="copy-btn" data-csv-export="sum_${blockId}" title="Export this borehole as a Summary CSV for AutoCAD">⬇ SUMMARY CSV</button>
