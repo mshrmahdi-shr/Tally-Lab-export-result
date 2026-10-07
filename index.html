@@ -709,7 +709,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.8.1 · Groundwater blue default</span>
+  <span class="ver">v25.9 · MW/VP borehole parsing</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -738,10 +738,10 @@ const TABLE_LABEL_RE = /Table\s+\d+(\.\d+)?/gi;
 const SAMPLE_ID_RE = /^\d{2}-\d{3,5}-\d+$/;
 // Depth may be a range ("0.5-1.0m") or a single value ("1.20m")
 const DEPTH_RE = /^\d+(\.\d+)?(-\d+(\.\d+)?)?\s*m$/i;
-const BH_PREFIX_RE = /^(BH\s?\d+[A-Za-z]?|TP\s?\d+[A-Za-z]?|MW\s?\d+|EMW\s?\d+|SS\s?\d+|Grab\s*Sample\s*#?\s*\d+|GS[-\s]?\d+|SP\s?\d+)/i;
+const BH_PREFIX_RE = /^(BH\s?\d+[A-Za-z]?|TP\s?\d+[A-Za-z]?|MW\s*\d+(?:-\d+)?[A-Za-z]?|VP[-\s]?\d+[A-Za-z]?|EMW\s?\d+|SS\s?\d+|Grab\s*Sample\s*#?\s*\d+|GS[-\s]?\d+|SP\s?\d+)/i;
 // Same vocabulary as BH_PREFIX_RE but NOT anchored to the start of the string — for finding
 // a well name inside a labelled line like "Borehole No: BH1" rather than at position 0.
-const BH_PREFIX_ANYWHERE_RE = /\b(BH\s?\d+[A-Za-z]?|TP\s?\d+[A-Za-z]?|MW\s?\d+|EMW\s?\d+|SS\s?\d+|GS[-\s]?\d+|SP\s?\d+)\b/i;
+const BH_PREFIX_ANYWHERE_RE = /\b(BH\s?\d+[A-Za-z]?|TP\s?\d+[A-Za-z]?|MW\s*\d+(?:-\d+)?[A-Za-z]?|VP[-\s]?\d+[A-Za-z]?|EMW\s?\d+|SS\s?\d+|GS[-\s]?\d+|SP\s?\d+)\b/i;
 // Header-noise tokens that PDF extraction merges into ID / borehole rows on compact pages:
 // "Soil Standards", "Ground Water Standards", "Parameter", "R/P/I", footnote superscripts (1, 2, 12), "*"
 const NOISE_TOKEN_RE = /^(Soil|Ground|Water|Standards?|Parameter|R\/P\/I|\*|\d{1,2})$/i;
@@ -787,8 +787,9 @@ function cleanBhPart(part, isLast){
 const ROW_PREFIX_PATTERNS = [
   /BH\s?\d+[A-Za-z]?/i,
   /TP\s?\d+[A-Za-z]?/i,
+  /MW\s*\d+(?:-\d+)?[A-Za-z]?/i,
+  /VP[-\s]?\d+[A-Za-z]?/i,
   /EMW\s?\d+/i,
-  /MW\s?\d+/i,
   /SS\s?\d+/i,
   /Grab\s*Sample\s*#?\s*\d+/i,  // surface grab samples, e.g. "Grab Sample #1" / "GrabSample #1"
   /GS[-\s]?\d+/i,               // and their short form, e.g. "GS-1" / "GS 2" / "GS3"
@@ -3047,6 +3048,7 @@ function normalizeBhLabel(s){
     .replace(/\bGrab\s*Sample\s*#?\s*(\d+)/gi, 'GS$1')  // "Grab Sample #1" -> "GS1"
     .replace(/\bGS[\s-]+(\d)/gi, 'GS$1')                 // "GS-1" / "GS 1" -> "GS1"
     .replace(/\b(BH|TP|MW|EMW|SS|SP)\s+(\d)/gi, '$1$2')
+    .replace(/\bVP\s+(\d)/gi, 'VP-$1')
     .replace(/\s+/g,' ').trim();
 }
 
