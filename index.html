@@ -608,13 +608,13 @@
         </div>
       </div>
       <div class="field">
-        <label>Sampling Date / Screen Interval reference (optional Excel or scanned COC PDF, shared across all rounds)</label>
+        <label>Sampling Date reference (optional TXT / Excel / scanned COC PDF, shared across all rounds)</label>
         <div class="dropzone dropzone--small" id="refDropZone" tabindex="0" role="button" aria-label="Add sampling date reference file">
           <div class="dz-icon">🗓️</div>
           <div class="dz-title">Drag &amp; drop the reference file</div>
           <button type="button" class="dz-browse-btn" id="refDropZoneBrowseBtn">📂 Browse…</button>
-          <div class="dz-sub">.xlsx / .xls / scanned COC .pdf</div>
-          <input type="file" id="xlsxInput" accept=".xlsx,.xls,.pdf,application/pdf" hidden="">
+          <div class="dz-sub">.txt (SampleID + Date) / .xlsx / .xls / scanned COC .pdf</div>
+          <input type="file" id="xlsxInput" accept=".txt,text/plain,.xlsx,.xls,.pdf,application/pdf" hidden="">
         </div>
         <div class="filename" id="xlsxName"></div>
         <details style="margin-top:10px;">
@@ -710,7 +710,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.1 · Robust COC date matching</span>
+  <span class="ver">v26.2 · TXT exact-date reference</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1114,24 +1114,41 @@ document.getElementById('xlsxInput').addEventListener('change', async (e)=>{
 async function loadReferenceFile(f){
   document.getElementById('xlsxName').style.display='block';
   document.getElementById('xlsxName').textContent = f.name;
-  const buf = await f.arrayBuffer();
 
-  if(/\.pdf$/i.test(f.name) || f.type === 'application/pdf'){
-    try{
-      setStatus('Reading scanned COC with OCR… this can take a little while.');
-      state.cocDates = await parseCocPdfWithOcr(buf, f.name);
-      state.cocRefName = f.name;
-      setStatus('COC read: ' + refSummary(state.cocDates) + '. Exact per-sample dates will override the COA date range.');
-    }catch(err){
-      console.error('COC OCR failed', err);
-      setStatus('Could not read COC PDF: ' + err.message, true);
+  if(/\.txt$/i.test(f.name) || f.type === 'text/plain'){
+    const text = await f.text();
+    const parsed = parsePastedReference(text);
+    const dateCount = Object.keys((parsed && parsed.sampleMap) || {})
+      .filter(id=>parsed.sampleMap[id] && parsed.sampleMap[id].date).length;
+    if(!dateCount){
+      setStatus('TXT reference was read, but no SampleID + Date rows were found.', true);
       return;
     }
+    state.pastedRef = parsed;
+    const ta = document.getElementById('pasteRef');
+    if(ta) ta.value = text;
+    const ps = document.getElementById('pasteRefStatus');
+    if(ps) ps.textContent = 'Loaded from TXT: ' + refSummary(parsed) + '.';
+    setStatus('TXT date reference loaded: ' + dateCount + ' exact sample dates.');
   } else {
-    state.xlsxDates = parseDateWorkbook(buf);
-    state.xlsxRefBlob = f;
-    state.xlsxRefName = f.name;
-    setStatus('Reference file read: ' + refSummary(state.xlsxDates) + '.');
+    const buf = await f.arrayBuffer();
+    if(/\.pdf$/i.test(f.name) || f.type === 'application/pdf'){
+      try{
+        setStatus('Reading scanned COC with OCR… this can take a little while.');
+        state.cocDates = await parseCocPdfWithOcr(buf, f.name);
+        state.cocRefName = f.name;
+        setStatus('COC read: ' + refSummary(state.cocDates) + '. Exact per-sample dates will override the COA date range.');
+      }catch(err){
+        console.error('COC OCR failed', err);
+        setStatus('Could not read COC PDF: ' + err.message, true);
+        return;
+      }
+    } else {
+      state.xlsxDates = parseDateWorkbook(buf);
+      state.xlsxRefBlob = f;
+      state.xlsxRefName = f.name;
+      setStatus('Reference file read: ' + refSummary(state.xlsxDates) + '.');
+    }
   }
 
   if(state.rerender) state.rerender();
@@ -1155,7 +1172,7 @@ async function loadReferenceFile(f){
     e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
     const f = (e.dataTransfer.files || [])[0];
     if(!f) return;
-    if(!/\.(xlsx?|pdf)$/i.test(f.name)){ setStatus('Reference file must be .xlsx, .xls, or a scanned COC .pdf', true); return; }
+    if(!/\.(txt|xlsx?|pdf)$/i.test(f.name)){ setStatus('Reference file must be .txt, .xlsx, .xls, or a scanned COC .pdf', true); return; }
     loadReferenceFile(f);
   });
 })();
