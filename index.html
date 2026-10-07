@@ -6,6 +6,7 @@
 <title>COA Tally Processor — Contaminant Table Checker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   :root{
     --bg:#0b0c0e;
@@ -607,13 +608,13 @@
         </div>
       </div>
       <div class="field">
-        <label>Sampling Date / Screen Interval reference (optional .xlsx, shared across all rounds)</label>
+        <label>Sampling Date / Screen Interval reference (optional Excel or scanned COC PDF, shared across all rounds)</label>
         <div class="dropzone dropzone--small" id="refDropZone" tabindex="0" role="button" aria-label="Add sampling date reference file">
           <div class="dz-icon">🗓️</div>
           <div class="dz-title">Drag &amp; drop the reference file</div>
           <button type="button" class="dz-browse-btn" id="refDropZoneBrowseBtn">📂 Browse…</button>
-          <div class="dz-sub">.xlsx / .xls</div>
-          <input type="file" id="xlsxInput" accept=".xlsx,.xls" hidden="">
+          <div class="dz-sub">.xlsx / .xls / scanned COC .pdf</div>
+          <input type="file" id="xlsxInput" accept=".xlsx,.xls,.pdf,application/pdf" hidden="">
         </div>
         <div class="filename" id="xlsxName"></div>
         <details style="margin-top:10px;">
@@ -709,7 +710,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v25.9 · MW/VP borehole parsing</span>
+  <span class="ver">v26.0 · COC exact-date OCR</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1114,10 +1115,25 @@ async function loadReferenceFile(f){
   document.getElementById('xlsxName').style.display='block';
   document.getElementById('xlsxName').textContent = f.name;
   const buf = await f.arrayBuffer();
-  state.xlsxDates = parseDateWorkbook(buf);
-  state.xlsxRefBlob = f;
-  state.xlsxRefName = f.name;
-  setStatus('Reference file read: ' + refSummary(state.xlsxDates) + '.');
+
+  if(/\.pdf$/i.test(f.name) || f.type === 'application/pdf'){
+    try{
+      setStatus('Reading scanned COC with OCR… this can take a little while.');
+      state.cocDates = await parseCocPdfWithOcr(buf, f.name);
+      state.cocRefName = f.name;
+      setStatus('COC read: ' + refSummary(state.cocDates) + '. Exact per-sample dates will override the COA date range.');
+    }catch(err){
+      console.error('COC OCR failed', err);
+      setStatus('Could not read COC PDF: ' + err.message, true);
+      return;
+    }
+  } else {
+    state.xlsxDates = parseDateWorkbook(buf);
+    state.xlsxRefBlob = f;
+    state.xlsxRefName = f.name;
+    setStatus('Reference file read: ' + refSummary(state.xlsxDates) + '.');
+  }
+
   if(state.rerender) state.rerender();
   saveProjectState();
 }
@@ -1139,10 +1155,121 @@ async function loadReferenceFile(f){
     e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
     const f = (e.dataTransfer.files || [])[0];
     if(!f) return;
-    if(!/\.(xlsx?|csv)$/i.test(f.name)){ setStatus('Reference file must be .xlsx or .xls', true); return; }
+    if(!/\.(xlsx?|pdf)$/i.test(f.name)){ setStatus('Reference file must be .xlsx, .xls, or a scanned COC .pdf', true); return; }
     loadReferenceFile(f);
   });
 })();
+
+/* ---- scanned Chain of Custody (COC) PDF -> exact per-sample dates -----------------
+   Fisher COCs often contain the exact date on every sample row even when the COA header
+   only gives a broad range.  These PDFs are frequently image-only scans, so PDF.js has no
+   text to extract.  We OCR only the central sample table and convert row order/row numbers
+   into the lab's full sample IDs: {jobNo}-{sequence}. */
+state.cocDates = state.cocDates || null;
+state.cocRefName = state.cocRefName || null;
+
+function cocJobNoFromTextOrName(text, fileName){
+  const m = String(text||'').match(/(?:LAB\s+JOB\s*(?:NO)?\s*[:#]?\s*|JOB\s*#?\s*[:#]?\s*)(\d{2}-\d{3,5})/i);
+  if(m) return m[1];
+  const f = String(fileName||'').match(/\b(\d{2}-\d{3,5})\b/);
+  return f ? f[1] : null;
+}
+function cocNormalizeDate(raw){
+  const m = String(raw||'').match(/(\d{1,2})[-\/\s]([A-Za-z]{3,9})[-\/\s](\d{2,4})/);
+  if(!m) return null;
+  const yy = m[3].length===2 ? ('20'+m[3]) : m[3];
+  const t = parseDateLoose(m[1]+' '+m[2]+' '+yy);
+  return t==null ? null : formatLongDate(m[1]+' '+m[2]+' '+yy);
+}
+function parseCocOcrRows(pageTexts, jobNo){
+  const collected = [];
+  let fallbackSeq = 1;
+  const dateRe = /\b\d{1,2}[-\/\s][A-Za-z]{3,9}[-\/\s]\d{2,4}\b/;
+
+  pageTexts.forEach(pageText=>{
+    const lines = String(pageText||'').split(/\r?\n/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+    lines.forEach(line=>{
+      const dm = line.match(dateRe);
+      if(!dm) return;
+      // A real COC sample row normally also carries a sample description/matrix token.
+      if(!/(?:\bSOIL\b|\bWATER\b|\bMW\s*\d|\bVP[-\s]?\d|\bBH\s*\d|\bTP\s*\d)/i.test(line)) return;
+
+      let seq = null;
+      const lead = line.match(/^\D{0,3}(\d{1,3})\b/);
+      if(lead) seq = parseInt(lead[1],10);
+
+      const date = cocNormalizeDate(dm[0]);
+      if(!date) return;
+      collected.push({seq, date, line});
+    });
+  });
+
+  // OCR can miss handwritten row numbers.  The COC itself is sequential top-to-bottom,
+  // so missing numbers fall back to row order while preserving any numbers OCR did read.
+  const used = new Set(collected.filter(r=>r.seq!=null).map(r=>r.seq));
+  collected.forEach(r=>{
+    if(r.seq==null){
+      while(used.has(fallbackSeq)) fallbackSeq++;
+      r.seq = fallbackSeq;
+      used.add(fallbackSeq);
+      fallbackSeq++;
+    }
+  });
+
+  collected.sort((a,b)=>a.seq-b.seq);
+  const sampleMap = {};
+  collected.forEach(r=>{
+    if(!r.seq || !jobNo) return;
+    const id = jobNo + '-' + r.seq;
+    sampleMap[id] = {date:r.date, bh:null, depth:null, sheet:'COC OCR'};
+  });
+  return {sampleMap, bhDepthMap:{}};
+}
+async function parseCocPdfWithOcr(arrayBuffer, fileName){
+  if(typeof Tesseract === 'undefined') throw new Error('OCR library did not load.');
+  const pdf = await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+  const pageTexts = [];
+  let allOcr = '';
+
+  for(let p=1; p<=pdf.numPages; p++){
+    setStatus('OCR COC page ' + p + ' of ' + pdf.numPages + '…');
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({scale:2.0});
+    const full = document.createElement('canvas');
+    full.width = Math.ceil(viewport.width);
+    full.height = Math.ceil(viewport.height);
+    const ctx = full.getContext('2d', {willReadFrequently:true});
+    await page.render({canvasContext:ctx, viewport}).promise;
+
+    // Crop to the sample table (avoids header/footer dates and greatly improves OCR).
+    const crop = document.createElement('canvas');
+    const y0 = Math.floor(full.height * 0.33);
+    const h = Math.floor(full.height * 0.50);
+    crop.width = full.width;
+    crop.height = h;
+    crop.getContext('2d').drawImage(full, 0, y0, full.width, h, 0, 0, full.width, h);
+
+    const result = await Tesseract.recognize(crop, 'eng', {
+      logger: m=>{
+        if(m && m.status === 'recognizing text' && typeof m.progress === 'number'){
+          setStatus('OCR COC page ' + p + '/' + pdf.numPages + ' — ' + Math.round(m.progress*100) + '%');
+        }
+      }
+    });
+    const text = (result && result.data && result.data.text) || '';
+    pageTexts.push(text);
+    allOcr += '\n' + text;
+  }
+
+  // Use the filename as a reliable fallback because the handwritten LAB JOB field may OCR poorly.
+  const jobNo = cocJobNoFromTextOrName(allOcr, fileName);
+  if(!jobNo) throw new Error('Could not determine the lab job number from the COC or filename.');
+
+  const ref = parseCocOcrRows(pageTexts, jobNo);
+  const count = Object.keys(ref.sampleMap).length;
+  if(!count) throw new Error('No sample/date rows were recognized in the scanned COC.');
+  return ref;
+}
 
 /* ---- borehole logs: extract "End of Borehole at X.XXm" per well, then the user picks the
    screen length (10 ft / 3.05m or 5 ft / 1.52m) per well before any depth is applied — this
@@ -2448,8 +2575,16 @@ function parsePastedReference(text){
 // wherever both provide a field (pasting is the user's deliberate correction).
 function getReferenceMap(){
   const xlsx = state.xlsxDates || {sampleMap:{}, bhDepthMap:{}};
+  const coc = state.cocDates || {sampleMap:{}, bhDepthMap:{}};
   const pasted = state.pastedRef || {sampleMap:{}, bhDepthMap:{}};
   const sampleMap = JSON.parse(JSON.stringify(xlsx.sampleMap || {}));
+
+  // Exact dates from a COC override the COA's broad range / any workbook fallback.
+  Object.keys(coc.sampleMap || {}).forEach(id=>{
+    if(!sampleMap[id]) sampleMap[id] = {date:null, bh:null, depth:null, sheet:'COC OCR'};
+    ['date','bh','depth'].forEach(k=>{ if(coc.sampleMap[id][k] != null) sampleMap[id][k] = coc.sampleMap[id][k]; });
+  });
+
   Object.keys(pasted.sampleMap || {}).forEach(id=>{
     if(!sampleMap[id]) sampleMap[id] = {date:null, bh:null, depth:null, sheet:'(pasted)'};
     ['date','bh','depth'].forEach(k=>{ if(pasted.sampleMap[id][k] != null) sampleMap[id][k] = pasted.sampleMap[id][k]; });
@@ -3735,7 +3870,7 @@ async function createProject(name){
     name, createdAt: now, updatedAt: now,
     boreholeAliases: {}, sampleDateOverrides: {}, gwWellSettings: {}, selectedTables: {}, selectedCats: {}, tableColors: {},
     matrixOverride: 'auto', resultMatrix: 'ALL', texturePref: 'standard', boreholeLogEntries: [],
-    pastedRefText: '', xlsxRefBlob: null, xlsxRefName: null
+    pastedRefText: '', xlsxRefBlob: null, xlsxRefName: null, cocDates: null, cocRefName: null
   }));
   return id;
 }
@@ -3791,7 +3926,9 @@ async function saveProjectStateNow(){
     boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen})),
     pastedRefText: (document.getElementById('pasteRef')||{}).value || '',
     xlsxRefBlob: state.xlsxRefBlob || null,
-    xlsxRefName: state.xlsxRefName || null
+    xlsxRefName: state.xlsxRefName || null,
+    cocDates: state.cocDates || null,
+    cocRefName: state.cocRefName || null
   });
   projectsStore.put(updated);
 
@@ -3849,6 +3986,8 @@ function resetWorkspace(){
   state.pastedRef = null;
   state.xlsxRefBlob = null;
   state.xlsxRefName = null;
+  state.cocDates = null;
+  state.cocRefName = null;
   if(document.getElementById('matrixSelect')) document.getElementById('matrixSelect').value = 'auto';
   if(document.getElementById('resultMatrixSelect')) document.getElementById('resultMatrixSelect').value = 'ALL';
   renderFileChips();
@@ -3916,7 +4055,9 @@ async function exportProjectFile(){
         boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen})),
         pastedRefText: (document.getElementById('pasteRef')||{}).value || '',
         xlsxRefName: state.xlsxRefName || null,
-        xlsxRefBase64
+        xlsxRefBase64,
+        cocDates: state.cocDates || null,
+        cocRefName: state.cocRefName || null
       },
       files: filesOut
     };
@@ -3948,6 +4089,8 @@ async function importProjectFile(file){
     state.boreholeAliases = s.boreholeAliases || {};
     state.sampleDateOverrides = s.sampleDateOverrides || {};
     state.gwWellSettings = s.gwWellSettings || {};
+    state.cocDates = s.cocDates || null;
+    state.cocRefName = s.cocRefName || null;
     state.selectedTables = s.selectedTables || {};
     state.selectedCats = s.selectedCats || {};
     state.tableColors = s.tableColors || {};
@@ -3997,6 +4140,8 @@ async function openProject(id){
     state.boreholeAliases = project.boreholeAliases || {};
     state.sampleDateOverrides = project.sampleDateOverrides || {};
     state.gwWellSettings = project.gwWellSettings || {};
+    state.cocDates = project.cocDates || null;
+    state.cocRefName = project.cocRefName || null;
     state.selectedTables = project.selectedTables || {};
     state.selectedCats = project.selectedCats || {};
     state.tableColors = project.tableColors || {};
