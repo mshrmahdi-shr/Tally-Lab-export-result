@@ -710,7 +710,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.0 · COC exact-date OCR</span>
+  <span class="ver">v26.1 · Robust COC date matching</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1223,7 +1223,32 @@ function parseCocOcrRows(pageTexts, jobNo){
     const id = jobNo + '-' + r.seq;
     sampleMap[id] = {date:r.date, bh:null, depth:null, sheet:'COC OCR'};
   });
-  return {sampleMap, bhDepthMap:{}};
+
+  // More reliable fallback for scanned COCs: the client sample description and sampling
+  // date are typed even when the handwritten sample sequence number OCRs poorly.
+  // Example: "MW26-22 (5'-7') 24-Aug-26 SOIL" or "VP-5 (2.5'-4.5') 25-Aug-26 SOIL".
+  // Build a borehole+depth -> exact date lookup and match that against the COA later.
+  const bhDepthDateMap = {};
+  const ftToM = ft => parseFloat((parseFloat(ft) * 0.3048).toFixed(2));
+  pageTexts.forEach(pageText=>{
+    const lines = String(pageText||'').split(/\r?\n/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+    lines.forEach(line=>{
+      const dm = line.match(dateRe);
+      if(!dm) return;
+      const bhm = line.match(/\b(MW\s*\d+(?:-\d+)?[A-Za-z]?|VP[-\s]?\d+[A-Za-z]?|BH\s*\d+[A-Za-z]?|TP\s*\d+[A-Za-z]?)\b/i);
+      if(!bhm) return;
+      const dep = line.match(/(\d+(?:\.\d+)?)\s*['’]?\s*[-–—]\s*(\d+(?:\.\d+)?)\s*['’]?/);
+      if(!dep) return;
+      const date = cocNormalizeDate(dm[0]);
+      if(!date) return;
+      const bh = normalizeBoreholeName(bhm[1]);
+      const top = ftToM(dep[1]), bot = ftToM(dep[2]);
+      const depth = normalizeDepthDisplay(top.toFixed(2) + '-' + bot.toFixed(2) + 'm');
+      bhDepthDateMap[bh + '|' + depth] = date;
+    });
+  });
+
+  return {sampleMap, bhDepthMap:{}, bhDepthDateMap};
 }
 async function parseCocPdfWithOcr(arrayBuffer, fileName){
   if(typeof Tesseract === 'undefined') throw new Error('OCR library did not load.');
@@ -1267,7 +1292,8 @@ async function parseCocPdfWithOcr(arrayBuffer, fileName){
 
   const ref = parseCocOcrRows(pageTexts, jobNo);
   const count = Object.keys(ref.sampleMap).length;
-  if(!count) throw new Error('No sample/date rows were recognized in the scanned COC.');
+  const keyedCount = Object.keys(ref.bhDepthDateMap || {}).length;
+  if(!count && !keyedCount) throw new Error('No sample/date rows were recognized in the scanned COC.');
   return ref;
 }
 
@@ -1430,7 +1456,11 @@ function processNow(){
       debugCombined += perFile.map(({file, result})=>
         `── ${file.name} ──\n` + (result.ctx._debugLines.join('\n') || '(no parse notes)')
       ).join('\n\n');
-      const merged = mergeCertificates(perFile, refMap ? refMap.bhDepthMap : null);
+      const merged = mergeCertificates(
+        perFile,
+        refMap ? refMap.bhDepthMap : null,
+        refMap ? refMap.bhDepthDateMap : null
+      );
       merged.ctx.visibleTables = visibleTableSet();
       merged.ctx.visibleCats = visibleCatSet();
       merged.ctx.tableColors = Object.assign({}, state.tableColors);
@@ -2574,9 +2604,9 @@ function parsePastedReference(text){
 // The map handed to processing: the Excel reference file, with pasted-text values WINNING
 // wherever both provide a field (pasting is the user's deliberate correction).
 function getReferenceMap(){
-  const xlsx = state.xlsxDates || {sampleMap:{}, bhDepthMap:{}};
-  const coc = state.cocDates || {sampleMap:{}, bhDepthMap:{}};
-  const pasted = state.pastedRef || {sampleMap:{}, bhDepthMap:{}};
+  const xlsx = state.xlsxDates || {sampleMap:{}, bhDepthMap:{}, bhDepthDateMap:{}};
+  const coc = state.cocDates || {sampleMap:{}, bhDepthMap:{}, bhDepthDateMap:{}};
+  const pasted = state.pastedRef || {sampleMap:{}, bhDepthMap:{}, bhDepthDateMap:{}};
   const sampleMap = JSON.parse(JSON.stringify(xlsx.sampleMap || {}));
 
   // Exact dates from a COC override the COA's broad range / any workbook fallback.
@@ -2599,7 +2629,9 @@ function getReferenceMap(){
     }
   });
   const bhDepthMap = Object.assign({}, logDepths, xlsx.bhDepthMap || {}, pasted.bhDepthMap || {}); // pasted > xlsx > log
-  return (Object.keys(sampleMap).length || Object.keys(bhDepthMap).length) ? {sampleMap, bhDepthMap} : null;
+  const bhDepthDateMap = Object.assign({}, xlsx.bhDepthDateMap || {}, coc.bhDepthDateMap || {}, pasted.bhDepthDateMap || {});
+  return (Object.keys(sampleMap).length || Object.keys(bhDepthMap).length || Object.keys(bhDepthDateMap).length)
+    ? {sampleMap, bhDepthMap, bhDepthDateMap} : null;
 }
 
 function refSummary(ref){
@@ -2608,7 +2640,9 @@ function refSummary(ref){
   const bIds = Object.keys(ref.bhDepthMap || {});
   const d = sIds.filter(id=>ref.sampleMap[id].date).length;
   const p = sIds.filter(id=>ref.sampleMap[id].depth).length;
+  const kd = Object.keys(ref.bhDepthDateMap || {}).length;
   const parts = [sIds.length + ' samples (' + d + ' with dates, ' + p + ' with depths)'];
+  if(kd) parts.push(kd + ' borehole/depth dates from COC');
   if(bIds.length) parts.push(bIds.length + ' boreholes with a depth lookup');
   return parts.join(', ');
 }
@@ -2807,7 +2841,7 @@ function processCertificate(pages, dateMap){
 // Each sample is tagged with resolved per-round info (_date, _depth, _tableLabels, source file)
 // BEFORE merging, using that file's own ctx — this keeps every round self-describing once the
 // samples live together in one combined map, so grouping/rendering never needs per-file ctx again.
-function mergeCertificates(perFile, bhDepthMap){
+function mergeCertificates(perFile, bhDepthMap, bhDepthDateMap){
   const samples = {};
   const tableLabelsOrder = [];
   const rounds = [];
@@ -2831,9 +2865,10 @@ function mergeCertificates(perFile, bhDepthMap){
         : ctx.matrix);
       const rangeChoices = parseSamplingDateRange(ctx.dateRangeRaw);
       s._dateRange = rangeChoices.length > 1 ? ctx.dateRangeRaw : null;
-      s._date = (state.sampleDateOverrides && state.sampleDateOverrides[id])
-        || s.date
-        || dateMapLookup(id, ctx);
+
+      // Depth resolution happens before the COC fallback because scanned COCs are matched
+      // by typed client sample description (borehole + feet interval), not by fragile
+      // handwritten row numbers.
       // Depth resolution, most specific source first: the certificate's own text, then the
       // per-sample-ID reference lookup, then — new — a simple per-borehole-NAME reference
       // lookup (for sources that only give "Borehole | Depth" with no sample IDs at all).
@@ -2848,6 +2883,20 @@ function mergeCertificates(perFile, bhDepthMap){
         || (bhDepthMap && (bhDepthMap[bhKeyFull] || bhDepthMap[bhKeyBare]))
         || null;
       s._depth = normalizeDepthDisplay(rawDepth);
+
+      const cocKeyFull = bhKeyFull && s._depth ? (bhKeyFull + '|' + s._depth) : null;
+      const cocKeyBare = bhKeyBare && s._depth ? (bhKeyBare + '|' + s._depth) : null;
+      const cocDate = bhDepthDateMap && (bhDepthDateMap[cocKeyFull] || bhDepthDateMap[cocKeyBare]);
+
+      s._date = (state.sampleDateOverrides && state.sampleDateOverrides[id])
+        || s.date
+        || cocDate
+        || dateMapLookup(id, ctx)
+        || null;
+
+      // Exact COC date means this sample no longer needs the broad COA date range picker.
+      if(cocDate && !state.sampleDateOverrides[id]) s._dateRange = null;
+
       s._tableLabels = ctx.tableLabels.slice();
       samples[id] = s;
     });
