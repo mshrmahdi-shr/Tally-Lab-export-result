@@ -711,7 +711,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.2 · TXT exact-date reference</span>
+  <span class="ver">v26.3 · DOCX exceedance summary</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -865,7 +865,13 @@ async function addCertificateFiles(picked){
     try{
       const isTxt = /\.txt$/i.test(f.name) || f.type === 'text/plain';
       const isWorkbook = /\.(xlsx?|csv)$/i.test(f.name);
-      if(isTxt){
+      const isDocx = /\.docx$/i.test(f.name) || f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      if(isDocx){
+        entry.kind = 'exceedance-summary';
+        entry.summary = await parseExceedanceSummaryDocx(await f.arrayBuffer());
+        entry.labels = ['Table 9'];
+        entry.cats = [...new Set(Object.values(entry.summary.soilSamples).flatMap(function(r){ return Object.keys(r.categories||{}); }))];
+      } else if(isTxt){
         entry.kind = 'coa';
         entry.pages = linesToPages(await f.text());
       } else if(isWorkbook){
@@ -928,8 +934,8 @@ function removeFile(id){
 function renderFileChips(){
   const wrap = document.getElementById('fileChips');
   wrap.innerHTML = state.files.map(f=>{
-    const icon = f.status==='loading' ? '⏳' : f.status==='error' ? '⚠️' : (f.kind==='siteplan' ? '🗺️' : f.kind==='agat' ? '🧪' : (f.sheetNote ? '📊' : '📄'));
-    const title = f.status==='error' ? esc(f.error||'Could not read file') : esc(f.name + (f.kind==='siteplan' ? ' (site plan)' : f.kind==='agat' ? ' (AGAT report)' : (f.sheetNote ? ' — '+f.sheetNote : '')));
+    const icon = f.status==='loading' ? '⏳' : f.status==='error' ? '⚠️' : (f.kind==='siteplan' ? '🗺️' : f.kind==='agat' ? '🧪' : f.kind==='exceedance-summary' ? '📋' : (f.sheetNote ? '📊' : '📄'));
+    const title = f.status==='error' ? esc(f.error||'Could not read file') : esc(f.name + (f.kind==='siteplan' ? ' (site plan)' : f.kind==='agat' ? ' (AGAT report)' : f.kind==='exceedance-summary' ? ' (exceedance summary)' : (f.sheetNote ? ' — '+f.sheetNote : '')));
     return `<span class="file-chip ${f.status}" title="${title}">
       <span class="chip-status">${icon}</span>${esc(f.name)}
       <button type="button" class="chip-remove" data-remove-file="${f.id}">×</button>
@@ -1458,6 +1464,7 @@ function processNow(){
     const coaFiles = readyFiles.filter(f=>f.kind==='coa');
     const agatFiles = readyFiles.filter(f=>f.kind==='agat');
     const sitePlanFiles = readyFiles.filter(f=>f.kind==='siteplan');
+    const summaryFiles = readyFiles.filter(f=>f.kind==='exceedance-summary');
 
     const wrap = document.getElementById('reportWrap');
     wrap.innerHTML = '';
@@ -1507,6 +1514,13 @@ function processNow(){
       renderSitePlanReports(merged, wrap, visibleCatSet());
       if(debugCombined) debugCombined += '\n\n';
       debugCombined += sitePlanFiles.map(f=>`── ${f.name} (site plan) ──\nparsed as CAD site-plan format`).join('\n\n');
+    }
+
+    if(summaryFiles.length){
+      const merged = mergeSitePlanFiles(summaryFiles.map(f=>({file:f, result:f.summary})));
+      renderSitePlanReports(merged, wrap, visibleCatSet());
+      if(debugCombined) debugCombined += '\n\n';
+      debugCombined += summaryFiles.map(f=>`── ${f.name} (DOCX exceedance summary) ──\nparsed directly from summary table`).join('\n\n');
     }
 
     if(!wrap.children.length){
