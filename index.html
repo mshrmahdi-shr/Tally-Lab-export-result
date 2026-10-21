@@ -711,7 +711,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.3 · DOCX exceedance summary</span>
+  <span class="ver">v26.4 · DOCX clean IDs + history</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1934,12 +1934,26 @@ async function parseExceedanceSummaryDocx(arrayBuffer){
     let currentBh = '';
     let currentDepth = '';
     let currentDup = false;
+    let currentHistory = '';
+    let currentYear = '';
     Array.from(table.querySelectorAll('tr')).forEach(function(tr){
       const cells = Array.from(tr.querySelectorAll('th,td')).map(function(td){
         return td.textContent.replace(/\s+/g,' ').trim();
       });
-      if(cells.length < 4) return;
+      if(!cells.length) return;
       const joined = cells.join(' | ');
+
+      // Section/history rows span the table and identify the investigation vintage,
+      // e.g. "Spill Investigation (Fisher, 2025)".
+      const nonEmpty = cells.filter(Boolean);
+      if(nonEmpty.length === 1 && /(?:Phase II|Investigation|Sampling Report|Fisher|Safetech)/i.test(nonEmpty[0])){
+        currentHistory = nonEmpty[0].trim();
+        const ym = currentHistory.match(/\b(19|20)\d{2}\b/);
+        currentYear = ym ? ym[0] : '';
+        return;
+      }
+
+      if(cells.length < 4) return;
       if(/Borehole\/|Sample Depth|Contaminants of Concern|Concentration/i.test(joined)) return;
 
       const bhCell = cells[0] || '';
@@ -1966,7 +1980,12 @@ async function parseExceedanceSummaryDocx(arrayBuffer){
       const key = currentBh + '|' + (currentDepth||'') + '|' + (currentDup?'D':'N');
       if(!soilSamples[key]){
         soilSamples[key] = {
-          bh:currentBh, date:null, depth:currentDepth||null, isDup:currentDup,
+          bh:currentBh,
+          sampleId:currentBh,
+          date:currentYear || null,
+          history:currentHistory || '',
+          depth:currentDepth||null,
+          isDup:currentDup,
           categories:{}, exceed:{}, flagsSeen:{}, scsLabel:'Table 9 SCS',
           sourceType:'Exceedance Summary'
         };
@@ -2290,18 +2309,28 @@ function buildSitePlanReportEl(title, samplesMap, unit, catSet){
 
       const depthLabel = s.depth || '?';
       const dateLabel = s.date ? ' ('+s.date+')' : '';
-      const idText = depthLabel + (s.isDup ? ' (Filed Dup)' : '');
+      const idText = depthLabel + (s.isDup ? ' (Field Duplicate)' : '');
+      const displaySampleId = s.sampleId || id;
       const catsPlain = cats.join(', ');
       const flagPlain = hasExc ? excCats.join(', ') : (s.scsLabel || 'Met SCS');
       const complianceText = hasExc ? '' : (s.scsLabel ? '<'+s.scsLabel : 'Met SCS');
-      const csvId = id + (s.isDup ? ' (Field Duplicate)' : '');
+      const csvId = displaySampleId + (s.isDup ? ' (Field Duplicate)' : '');
 
-      blockTsvRows.push([idText+dateLabel, catsPlain, flagPlain, hasExc?'':(s.scsLabel||'')]);
+      // Preserve the Word document's historical section label in the first/display row.
+      const historyLabel = s.history ? s.history : '';
+      blockTsvRows.push([displaySampleId + (dateLabel||'') + (depthLabel ? ' ('+depthLabel+')' : ''), catsPlain, flagPlain, hasExc?'':(s.scsLabel||'')]);
+      if(historyLabel) blockTsvRows.push(['', historyLabel, '', '']);
       const summaryRow = csvRow([g.bh, s.date||'', csvId, s.depth||'', catsPlain, hasExc?excCats.join(', '):'', complianceText]);
       summaryLines.push(summaryRow); allSummaryLines.push(summaryRow);
 
+      const extraHistoryRows = s.history ? 1 : 0;
+      const effectiveRowspan = rowspan + extraHistoryRows;
       html += `<tr>
-        <td class="sid ${hasExc?'exceed':'ok'}" rowspan="${rowspan}" data-copyable data-copy="${esc(idText+dateLabel)}">${esc(depthLabel)}${s.isDup?' <span class="depth">(Filed Dup)</span>':''}<span class="depth">${esc(dateLabel)}</span></td>
+        <td class="sid ${hasExc?'exceed':'ok'}" rowspan="${effectiveRowspan}" data-copyable data-copy="${esc(csvId + (depthLabel?' ('+depthLabel+')':'') + dateLabel)}">
+          ${esc(displaySampleId)}${s.isDup?' <span class="depth">(Field Duplicate)</span>':''}
+          ${depthLabel?'<span class="depth">('+esc(depthLabel)+')</span>':''}
+          ${dateLabel?'<span class="depth">'+esc(dateLabel)+'</span>':''}
+        </td>
         <td data-copyable data-copy="${esc(catsPlain)}">${esc(catsPlain)}</td>`;
 
       if(hasExc){
@@ -2331,6 +2360,10 @@ function buildSitePlanReportEl(title, samplesMap, unit, catSet){
         const detRow = csvRow([g.bh, s.date||'', csvId, s.depth||'', catsPlain, '', '', '', '', complianceText]);
         detailedLines.push(detRow); allDetailedLines.push(detRow);
         html += `<td class="italic" colspan="2" data-copyable data-copy="${esc(s.scsLabel||'')}">${esc(s.scsLabel ? '<'+s.scsLabel : 'Met SCS')}</td></tr>`;
+      }
+
+      if(s.history){
+        html += `<tr class="round-subhead"><td colspan="3"><span class="round-date">${esc(s.history)}</span></td></tr>`;
       }
     });
 
