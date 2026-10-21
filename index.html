@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
 <style>
   :root{
     --bg:#0b0c0e;
@@ -584,8 +585,8 @@
           <div class="dz-icon">📄</div>
           <div class="dz-title">Drag &amp; drop lab reports here</div>
           <button type="button" class="dz-browse-btn" id="dropZoneBrowseBtn">📂 Browse files…</button>
-          <div class="dz-sub">PDF, Excel, CSV, TXT · several rounds/years at once</div>
-          <input type="file" id="pdfInput" accept="application/pdf,.txt,text/plain,.xls,.xlsx,.csv" multiple="" hidden="">
+          <div class="dz-sub">PDF, Excel, CSV, TXT, DOCX exceedance summaries · several rounds/years at once</div>
+          <input type="file" id="pdfInput" accept="application/pdf,.txt,text/plain,.xls,.xlsx,.csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple="" hidden="">
         </div>
         <div class="file-chips" id="fileChips"></div>
         <div id="tableSelectWrap" style="display:none;">
@@ -847,7 +848,7 @@ document.getElementById('pdfInput').addEventListener('change', async (e)=>{
   }
 })();
 
-const SUPPORTED_FILE_RE = /\.(pdf|txt|xls|xlsx|csv)$/i;
+const SUPPORTED_FILE_RE = /\.(pdf|txt|xls|xlsx|csv|docx)$/i;
 
 async function addCertificateFiles(picked){
   if(!picked.length) return;
