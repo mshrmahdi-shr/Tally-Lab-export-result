@@ -1884,6 +1884,91 @@ function workbookCoaToPages(data, isText){
 }
 
 /* =====================================================================================
+   DOCX EXCEEDANCE-SUMMARY PARSER
+   Handles consultant tables such as "TABLE 1.1: Summary of Exceedances in Soil".
+   Each data row already supplies borehole/sample ID, depth, contaminant, result and SCS.
+   ===================================================================================== */
+function summaryCategoryForParameter(name){
+  const n = String(name||'').toUpperCase().replace(/\s+/g,' ');
+  if(/\bPHC\s*F[1-4G]|^F[1-4G]\b/.test(n)) return 'PHC(F1-F4)';
+  if(/NAPHTHALENE|PHENANTHRENE|ANTHRACENE|FLUORANTHENE|PYRENE|CHRYSENE|BENZO|INDENO|DIBENZO|ACENAPHTH/.test(n)) return 'PAH';
+  if(/BENZENE|TOLUENE|ETHYLBENZENE|XYLENE/.test(n)) return 'BTEX';
+  if(/PCB/.test(n)) return 'PCBs';
+  if(/\bVOC/.test(n)) return 'VOCs';
+  if(/ARSENIC|BARIUM|CADMIUM|CHROMIUM|COBALT|COPPER|LEAD|MERCURY|MOLYBDENUM|NICKEL|SELENIUM|SILVER|URANIUM|VANADIUM|ZINC|ANTIMONY|BERYLLIUM|BORON|THALLIUM/.test(n)) return 'Metals';
+  return 'Other';
+}
+function summaryCleanBh(raw){
+  return String(raw||'').replace(/[\x60*]+/g,'').replace(/\s+/g,' ').trim();
+}
+function summaryDepthInfo(raw){
+  const t0 = String(raw||'').replace(/\s+/g,' ').trim();
+  const isDup = /field\s+duplicate/i.test(t0);
+  const t = t0.replace(/[,;]?\s*field\s+duplicate/ig,'').trim();
+  const m = t.match(/\d+(?:\.\d+)?(?:\s*[-\u2013\u2014]\s*\d+(?:\.\d+)?)?/);
+  return {depth:m ? normalizeDepthDisplay(m[0]+'m') : (t||null), isDup:isDup};
+}
+async function parseExceedanceSummaryDocx(arrayBuffer){
+  if(typeof mammoth === 'undefined') throw new Error('DOCX reader did not load.');
+  const result = await mammoth.convertToHtml({arrayBuffer:arrayBuffer});
+  const doc = new DOMParser().parseFromString(result.value, 'text/html');
+  const soilSamples = {};
+  const tables = Array.from(doc.querySelectorAll('table'));
+  if(!tables.length) throw new Error('No tables found in DOCX.');
+
+  tables.forEach(function(table){
+    let currentBh = '';
+    let currentDepth = '';
+    let currentDup = false;
+    Array.from(table.querySelectorAll('tr')).forEach(function(tr){
+      const cells = Array.from(tr.querySelectorAll('th,td')).map(function(td){
+        return td.textContent.replace(/\s+/g,' ').trim();
+      });
+      if(cells.length < 4) return;
+      const joined = cells.join(' | ');
+      if(/Borehole\/|Sample Depth|Contaminants of Concern|Concentration/i.test(joined)) return;
+
+      const bhCell = cells[0] || '';
+      const depthCell = cells[1] || '';
+      const paramCell = cells[2] || '';
+      const resultCell = cells[3] || '';
+      const stdCell = cells[4] || '';
+
+      if(bhCell && !/Phase II|Investigation|Sampling Report|Summary of Exceedances/i.test(bhCell)){
+        currentBh = summaryCleanBh(bhCell);
+      }
+      if(depthCell){
+        const di = summaryDepthInfo(depthCell);
+        if(di.depth) currentDepth = di.depth;
+        currentDup = di.isDup;
+      }
+      if(!currentBh || !paramCell) return;
+
+      const measured = parseFloat(String(resultCell).replace(/,/g,''));
+      const standard = parseFloat(String(stdCell).replace(/,/g,''));
+      if(!isFinite(measured) || !isFinite(standard)) return;
+
+      const cat = summaryCategoryForParameter(paramCell);
+      const key = currentBh + '|' + (currentDepth||'') + '|' + (currentDup?'D':'N');
+      if(!soilSamples[key]){
+        soilSamples[key] = {
+          bh:currentBh, date:null, depth:currentDepth||null, isDup:currentDup,
+          categories:{}, exceed:{}, flagsSeen:{}, scsLabel:'Table 9 SCS',
+          sourceType:'Exceedance Summary'
+        };
+      }
+      const rec = soilSamples[key];
+      rec.categories[cat] = true;
+      if(!rec.exceed[cat]) rec.exceed[cat] = [];
+      rec.exceed[cat].push({name:paramCell, val:measured, std:standard});
+    });
+  });
+
+  if(!Object.keys(soilSamples).length) throw new Error('No exceedance records were recognized in the DOCX.');
+  return {soilSamples:soilSamples, gwSamples:{}};
+}
+
+/* =====================================================================================
    SITE-PLAN (CAD FIGURE) PARSER
    Handles a different Fisher document type: Phase I/II ESA reports whose analytical
    results are laid out as small floating text boxes scattered across a CAD site-plan
