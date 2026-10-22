@@ -4761,7 +4761,7 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
       })();
       out.push({bh:first.BH,date:first.Date,mode:"summary",rows:sr.map(r=>{
         const s=magicCsvDxfSplitSample(r.SampleID);
-        return {sample:s.base,note:s.note,depth:r.Depth||"",analyses:r.Analyses||"",result:r.ExceededGroups||r.ComplianceText||"",exceeded:!!r.ExceededGroups};
+        return {role:"summary",sample:s.base,note:s.note,depth:r.Depth||"",analyses:r.Analyses||"",result:r.ExceededGroups||r.ComplianceText||"",exceeded:!!r.ExceededGroups};
       })});
     }else{
       const bySample=new Map();
@@ -4770,7 +4770,7 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
         if(!bySample.has(sk)) bySample.set(sk,[]);
         bySample.get(sk).push(r);
       }
-      const tableRows=[];
+      const physicalRows=[];
       for(const srows of bySample.values()){
         const s0=srows[0], s=magicCsvDxfSplitSample(s0.SampleID);
         const byGroup=new Map();
@@ -4779,21 +4779,27 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
           if(!byGroup.has(g)) byGroup.set(g,[]);
           byGroup.get(g).push(r);
         }
-        let firstGroup=true;
-        for(const [g,grows] of byGroup){
-          tableRows.push({
-            sample:firstGroup?s.base:"",note:firstGroup?s.note:"",depth:firstGroup?(s0.Depth||""):"",
-            analyses:firstGroup?(s0.Analyses||""):"",
-            group:g,
-            parameters:grows.map(x=>x.Parameter||"").filter(Boolean),
-            results:grows.map(x=>x.ResultValue||""),
-            standards:grows.map(x=>x.StandardValue||""),
-            exceeded:grows.some(x=>x.ExceededGroup)
-          });
-          firstGroup=false;
-        }
+        const groupRows=[...byGroup.entries()].map(([g,grows])=>({
+          role:"detail",
+          group:g,
+          parameters:grows.map(x=>x.Parameter||"").filter(Boolean),
+          results:grows.map(x=>x.ResultValue||""),
+          standards:grows.map(x=>x.StandardValue||""),
+          exceeded:grows.some(x=>x.ExceededGroup)
+        }));
+        physicalRows.push({
+          role:"sampleSummary",
+          sample:s.base,
+          note:s.note,
+          depth:s0.Depth||"",
+          analyses:s0.Analyses||"",
+          exceededGroups:groupRows.map(g=>g.group).filter(Boolean).join(", "),
+          sampleSpan:1+groupRows.length,
+          exceeded:groupRows.some(g=>g.exceeded)
+        });
+        physicalRows.push(...groupRows);
       }
-      out.push({bh:first.BH,date:first.Date,mode:"detailed",rows:tableRows});
+      out.push({bh:first.BH,date:first.Date,mode:"detailed",rows:physicalRows});
     }
   }
   return out;
@@ -4811,14 +4817,34 @@ function magicCsvDxfRenderPreview(models){
   wrap.innerHTML=models.map(m=>{
     const heads=m.mode==="summary"
       ? "<tr><th>Sample / Depth</th><th>Analyses</th><th>Exceeded / Compliance</th></tr>"
-      : "<tr><th>Sample / Depth</th><th>Group / Parameter</th><th>Result</th><th>Standard</th></tr>";
-    const body=m.rows.map(r=>{
-      const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).map(magicCsvDxfEscapeHtml).join("<br>");
-      if(m.mode==="summary"){
+      : "<tr><th>Sample / Depth</th><th>Analyses / Group / Parameter</th><th>Result</th><th>Standard</th></tr>";
+    let body="";
+    if(m.mode==="summary"){
+      body=m.rows.map(r=>{
+        const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).map(magicCsvDxfEscapeHtml).join("<br>");
         return "<tr><td>"+sample+"</td><td>"+magicCsvDxfEscapeHtml(r.analyses)+"</td><td class=\""+(r.exceeded?"magic-exceeded":"")+"\">"+magicCsvDxfEscapeHtml(r.result)+"</td></tr>";
+      }).join("");
+    }else{
+      for(let i=0;i<m.rows.length;){
+        const summary=m.rows[i];
+        if(summary.role!=="sampleSummary"){ i++; continue; }
+        const details=m.rows.slice(i+1,i+summary.sampleSpan);
+        const sample=[summary.sample,summary.note,summary.depth?"("+summary.depth+")":""].filter(Boolean).map(magicCsvDxfEscapeHtml).join("<br>");
+        body += "<tr>"+
+          "<td rowspan=\""+summary.sampleSpan+"\" style=\"text-align:center;font-weight:700;\">"+sample+"</td>"+
+          "<td>"+magicCsvDxfEscapeHtml(summary.analyses)+"</td>"+
+          "<td colspan=\"2\" class=\""+(summary.exceeded?"magic-exceeded":"")+"\" style=\"text-align:center;\">"+magicCsvDxfEscapeHtml(summary.exceededGroups)+"</td>"+
+          "</tr>";
+        for(const d of details){
+          body += "<tr>"+
+            "<td class=\"magic-exceeded\" style=\"text-align:center;\">"+magicCsvDxfEscapeHtml([d.group,...d.parameters].filter(Boolean).join(" / "))+"</td>"+
+            "<td class=\"magic-exceeded\" style=\"text-align:center;\">"+magicCsvDxfEscapeHtml((d.results||[]).join(" / "))+"</td>"+
+            "<td style=\"text-align:center;\">"+magicCsvDxfEscapeHtml((d.standards||[]).join(" / "))+"</td>"+
+            "</tr>";
+        }
+        i+=summary.sampleSpan;
       }
-      return "<tr><td>"+sample+"</td><td class=\"magic-exceeded\">"+magicCsvDxfEscapeHtml([r.group,...r.parameters].filter(Boolean).join(" / "))+"</td><td class=\"magic-exceeded\">"+magicCsvDxfEscapeHtml((r.results||[]).join(" / "))+"</td><td>"+magicCsvDxfEscapeHtml((r.standards||[]).join(" / "))+"</td></tr>";
-    }).join("");
+    }
     return "<div class=\"magic-dxf-card\"><div class=\"magic-dxf-title\" style=\"background:"+fill+"\">"+magicCsvDxfEscapeHtml(m.bh+(m.date?" ("+m.date+")":""))+"</div><table class=\"magic-dxf-table\">"+heads+"<tbody>"+body+"</tbody></table></div>";
   }).join("");
 }
@@ -4830,38 +4856,112 @@ function magicCsvDxfText(layer,x,y,h,text){
   const safe=String(text??"").replace(/[^\x20-\x7E]/g,"?");
   return magicCsvDxfPair(0,"TEXT")+magicCsvDxfPair(8,layer)+magicCsvDxfPair(10,x)+magicCsvDxfPair(20,y)+magicCsvDxfPair(40,h)+magicCsvDxfPair(1,safe);
 }
+function magicCsvDxfMText(layer,x,y,h,width,text){
+  const safe=String(text??"").replace(/[^\x20-\x7E]/g,"?");
+  return magicCsvDxfPair(0,"MTEXT")+
+    magicCsvDxfPair(8,layer)+
+    magicCsvDxfPair(10,x)+magicCsvDxfPair(20,y)+magicCsvDxfPair(30,0)+
+    magicCsvDxfPair(40,h)+magicCsvDxfPair(41,width)+magicCsvDxfPair(71,5)+
+    magicCsvDxfPair(1,safe);
+}
+function magicCsvDxfLineCount(text){
+  const s=String(text??"");
+  return s ? s.split("\\P").length : 1;
+}
+function magicCsvDxfDetailedRowHeight(row){
+  if(row.role==="sampleSummary") return 12;
+  const p=[row.group,...(row.parameters||[])].filter(Boolean).length;
+  const r=(row.results||[]).length;
+  const s=(row.standards||[]).length;
+  return Math.max(12,3.5+4*Math.max(2,p,r,s));
+}
 function magicCsvDxfBuildDxf(models){
   let out=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"HEADER")+magicCsvDxfPair(0,"ENDSEC");
   out+=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"TABLES")+magicCsvDxfPair(0,"TABLE")+magicCsvDxfPair(2,"LAYER")+magicCsvDxfPair(70,4);
-  for(const l of [["MAGIC_TABLE_GRID",7],["MAGIC_TABLE_TEXT",7],["MAGIC_TABLE_EXCEEDED",1],["MAGIC_TABLE_TITLE",2]]){
+  for(const l of [["MAGIC_TABLE_GRID",7],["MAGIC_TABLE_TEXT",7],["MAGIC_TABLE_EXCEEDED",1],["MAGIC_TABLE_TITLE",7]]){
     out+=magicCsvDxfPair(0,"LAYER")+magicCsvDxfPair(2,l[0])+magicCsvDxfPair(70,0)+magicCsvDxfPair(62,l[1])+magicCsvDxfPair(6,"CONTINUOUS");
   }
   out+=magicCsvDxfPair(0,"ENDTAB")+magicCsvDxfPair(0,"ENDSEC")+magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"ENTITIES");
   let top=0;
+
   for(const m of models){
     const widths=m.mode==="summary"?[36,58,32]:[36,58,18,18];
-    const total=widths.reduce((a,b)=>a+b,0), titleH=8,rowH=12;
-    const rowCount=m.rows.length, bottom=top-titleH-rowCount*rowH;
+    const total=widths.reduce((a,b)=>a+b,0), titleH=8;
     const xs=[0]; widths.forEach(w=>xs.push(xs[xs.length-1]+w));
-    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top,total,top)+magicCsvDxfLine("MAGIC_TABLE_GRID",0,top-titleH,total,top-titleH);
-    for(let r=1;r<=rowCount;r++){ const y=top-titleH-r*rowH; out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,y,total,y); }
-    for(const x of xs){ out+=magicCsvDxfLine("MAGIC_TABLE_GRID",x,top-titleH,x,bottom); }
-    out+=magicCsvDxfText("MAGIC_TABLE_TITLE",2,top-5,3,m.bh+(m.date?" ("+m.date+")":""));
-    m.rows.forEach((r,idx)=>{
-      const y=top-titleH-idx*rowH-7;
-      const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).join(" | ");
-      out+=magicCsvDxfText("MAGIC_TABLE_TEXT",2,y,2.5,sample);
-      if(m.mode==="summary"){
-        out+=magicCsvDxfText("MAGIC_TABLE_TEXT",xs[1]+2,y,2.4,r.analyses||"");
-        out+=magicCsvDxfText(r.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+2,y,2.4,r.result||"");
-      }else{
-        out+=magicCsvDxfText("MAGIC_TABLE_EXCEEDED",xs[1]+2,y,2.3,[r.group,...r.parameters].filter(Boolean).join(" | "));
-        out+=magicCsvDxfText("MAGIC_TABLE_EXCEEDED",xs[2]+2,y,2.3,(r.results||[]).join(" | "));
-        out+=magicCsvDxfText("MAGIC_TABLE_TEXT",xs[3]+2,y,2.3,(r.standards||[]).join(" | "));
+
+    // Title row — one merged cell across full width.
+    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top,total,top);
+    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top-titleH,total,top-titleH);
+    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top,0,top-titleH);
+    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",total,top,total,top-titleH);
+    out+=magicCsvDxfMText("MAGIC_TABLE_TITLE",total/2,top-titleH/2,3,total-4,m.bh+(m.date?" ("+m.date+")":""));
+
+    let y=top-titleH;
+
+    if(m.mode==="summary"){
+      const rowH=12;
+      for(const r of m.rows){
+        const nextY=y-rowH;
+        out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,nextY,total,nextY);
+        for(const x of xs) out+=magicCsvDxfLine("MAGIC_TABLE_GRID",x,y,x,nextY);
+        const cy=(y+nextY)/2;
+        const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).join("\\P");
+        out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[0]+widths[0]/2,cy,2.5,widths[0]-4,sample);
+        out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,cy,2.4,widths[1]-4,r.analyses||"");
+        out+=magicCsvDxfMText(r.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+widths[2]/2,cy,2.4,widths[2]-4,r.result||"");
+        y=nextY;
       }
-    });
-    top=bottom-10;
+    }else{
+      for(let i=0;i<m.rows.length;){
+        const summary=m.rows[i];
+        if(summary.role!=="sampleSummary"){ i++; continue; }
+        const details=m.rows.slice(i+1,i+summary.sampleSpan);
+        const heights=[magicCsvDxfDetailedRowHeight(summary),...details.map(magicCsvDxfDetailedRowHeight)];
+        const sampleTop=y;
+        const sampleBottom=y-heights.reduce((a,b)=>a+b,0);
+
+        // Outer top line for this sample group.
+        out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,y,total,y);
+
+        // Horizontal row boundaries. Internal boundaries start after the merged Sample cell.
+        for(let j=0;j<heights.length;j++){
+          y-=heights[j];
+          out+=magicCsvDxfLine("MAGIC_TABLE_GRID",j===heights.length-1?0:xs[1],y,total,y);
+        }
+
+        // A, B and C|D outer boundaries span the full sample group.
+        for(const x of [0,xs[1],xs[2],xs[4]]) out+=magicCsvDxfLine("MAGIC_TABLE_GRID",x,sampleTop,x,sampleBottom);
+
+        // Result/Standard divider exists only on detail rows, not the summary row (C+D are merged there).
+        out+=magicCsvDxfLine("MAGIC_TABLE_GRID",xs[3],sampleTop-heights[0],xs[3],sampleBottom);
+
+        // Merged Sample cell.
+        const sampleText=[summary.sample,summary.note,summary.depth?"("+summary.depth+")":""].filter(Boolean).join("\\P");
+        out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[0]+widths[0]/2,(sampleTop+sampleBottom)/2,2.5,widths[0]-4,sampleText);
+
+        // Summary row: analyses in B and exceeded-group list merged across C+D.
+        const summaryCy=sampleTop-heights[0]/2;
+        out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,summaryCy,2.35,widths[1]-4,summary.analyses||"");
+        out+=magicCsvDxfMText(summary.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+(widths[2]+widths[3])/2,summaryCy,2.35,widths[2]+widths[3]-4,summary.exceededGroups||"");
+
+        // Detail rows.
+        let detailTop=sampleTop-heights[0];
+        details.forEach((d,j)=>{
+          const h=heights[j+1], cy=detailTop-h/2;
+          out+=magicCsvDxfMText(d.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,cy,2.3,widths[1]-4,[d.group,...(d.parameters||[])].filter(Boolean).join("\\P"));
+          out+=magicCsvDxfMText(d.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+widths[2]/2,cy,2.3,widths[2]-4,(d.results||[]).join("\\P"));
+          out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[3]+widths[3]/2,cy,2.3,widths[3]-4,(d.standards||[]).join("\\P"));
+          detailTop-=h;
+        });
+
+        y=sampleBottom;
+        i+=summary.sampleSpan;
+      }
+    }
+
+    top=y-10;
   }
+
   out+=magicCsvDxfPair(0,"ENDSEC")+magicCsvDxfPair(0,"EOF");
   return out;
 }
