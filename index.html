@@ -293,7 +293,7 @@
   }
   .report:hover{box-shadow:0 8px 32px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);}
   .report .report-head{
-    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    display:flex; flex-direction:column; align-items:stretch; gap:16px;
     padding-bottom:14px; margin-bottom:16px;
     border-bottom:2px solid #e0e3e8;
   }
@@ -303,7 +303,7 @@
   }
   .report .meta{font-size:13px; margin:2px 0; color:#3a3a3a;}
   .report .meta b{color:#12253f;}
-  .report-actions{display:flex; gap:8px; flex-shrink:0;}
+  .report-actions{display:flex; flex-wrap:wrap; gap:8px; min-width:0;}
   table.tally{
     width:100%;
     border-collapse:separate;
