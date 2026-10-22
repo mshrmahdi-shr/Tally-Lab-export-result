@@ -629,13 +629,13 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
         </details>
       </div>
       <div class="field">
-        <label>Borehole logs for GW screen depth (optional .pdf/.txt) — computes screen interval from "End of Borehole at X.XXm"</label>
+        <label>GW screen depth source (optional PDF / TXT / DOCX) — reads borehole logs or field-data Screen Depth tables</label>
         <div class="dropzone dropzone--small" id="logDropZone" tabindex="0" role="button" aria-label="Add borehole log files">
           <div class="dz-icon">📜</div>
           <div class="dz-title">Drag &amp; drop borehole log file(s)</div>
           <button type="button" class="dz-browse-btn" id="logDropZoneBrowseBtn">📂 Browse…</button>
-          <div class="dz-sub">.pdf / .txt, one or many wells</div>
-          <input type="file" id="logInput" accept="application/pdf,.txt,text/plain" multiple="" hidden="">
+          <div class="dz-sub">.pdf / .txt borehole logs or .docx GWL field-data table</div>
+          <input type="file" id="logInput" accept="application/pdf,.txt,text/plain,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple="" hidden="">
         </div>
         <div class="file-chips" id="logChips"></div>
         <div class="filename" id="logStatus" style="display:block;"></div>
@@ -711,7 +711,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.4 · DOCX clean IDs + history</span>
+  <span class="ver">v26.5 · GWL DOCX screen depths</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1365,6 +1365,88 @@ function parseBoreholeLogText(text, fileName){
   return found;
 }
 
+
+async function parseGwFieldDataDocx(arrayBuffer, fileName){
+  if(typeof mammoth === 'undefined') throw new Error('DOCX reader did not load.');
+  const result = await mammoth.convertToHtml({arrayBuffer:arrayBuffer});
+  const doc = new DOMParser().parseFromString(result.value, 'text/html');
+  const found = [];
+
+  Array.from(doc.querySelectorAll('table')).forEach(function(table){
+    const rows = Array.from(table.querySelectorAll('tr'));
+    if(!rows.length) return;
+
+    let headerIndex = -1;
+    let wellCol = -1;
+    let screenCol = -1;
+    let totalCol = -1;
+
+    for(let r=0; r<rows.length; r++){
+      const cells = Array.from(rows[r].querySelectorAll('th,td')).map(function(td){
+        return td.textContent.replace(/\s+/g,' ').trim();
+      });
+      const joined = cells.join(' | ');
+      if(/Well\s*\/\s*Probe\s*ID/i.test(joined) && /Screen\s+Depth/i.test(joined)){
+        headerIndex = r;
+        wellCol = cells.findIndex(c=>/Well\s*\/\s*Probe\s*ID/i.test(c));
+        screenCol = cells.findIndex(c=>/Screen\s+Depth/i.test(c));
+        totalCol = cells.findIndex(c=>/Total\s+Depth/i.test(c));
+        break;
+      }
+    }
+    if(headerIndex < 0) return;
+
+    for(let r=headerIndex+1; r<rows.length; r++){
+      const cells = Array.from(rows[r].querySelectorAll('th,td')).map(function(td){
+        return td.textContent.replace(/\s+/g,' ').trim();
+      });
+      if(!cells.length) continue;
+
+      let bhRaw = wellCol >= 0 ? (cells[wellCol]||'') : (cells[0]||'');
+      const bhM = bhRaw.match(BH_PREFIX_ANYWHERE_RE);
+      if(!bhM) continue;
+      const bh = normalizeBhLabel(bhM[0]);
+
+      const screenRaw = screenCol >= 0 ? (cells[screenCol]||'') : '';
+      const screenM = String(screenRaw).match(/(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\s*m?/i);
+      if(screenM){
+        const directDepth = normalizeDepthDisplay(screenM[1]+'-'+screenM[2]+'m');
+        found.push({
+          bh:bh,
+          bottom:parseFloat(screenM[2]),
+          fileName:fileName,
+          screenLen:null,
+          directDepth:directDepth,
+          sourceType:'GWL Field Data DOCX'
+        });
+        continue;
+      }
+
+      // If Screen Depth is explicitly N/A, do NOT invent an interval for vapour probes.
+      if(/\b(?:n\/?a|dry|damaged)\b/i.test(screenRaw)) continue;
+
+      // Conservative fallback: only use total depth if the document has a valid screen interval
+      // elsewhere for that same row format; otherwise leave the well unresolved rather than guess.
+      const totalRaw = totalCol >= 0 ? (cells[totalCol]||'') : '';
+      const totalM = String(totalRaw).match(/\d+(?:\.\d+)?/);
+      if(totalM && /^MW/i.test(bh)){
+        // keep for the manual/default-screen workflow
+        found.push({
+          bh:bh,
+          bottom:parseFloat(totalM[0]),
+          fileName:fileName,
+          screenLen:3.048,
+          directDepth:null,
+          sourceType:'GWL Field Data DOCX'
+        });
+      }
+    }
+  });
+
+  if(!found.length) throw new Error('No GW screen-depth rows were recognized in this DOCX.');
+  return found;
+}
+
 function renderLogConfirmTable(){
   const wrap = document.getElementById('logConfirmWrap');
   const table = document.getElementById('logConfirmTable');
@@ -1372,6 +1454,13 @@ function renderLogConfirmTable(){
   if(!entries.length){ wrap.style.display = 'none'; table.innerHTML = ''; return; }
   wrap.style.display = 'block';
   const rows = entries.map((e, i)=>{
+    if(e.directDepth){
+      return `<tr>
+        <td><b>${esc(e.bh)}</b></td>
+        <td><span style="color:var(--muted);font-size:11px;">from DOCX Screen Depth</span></td>
+        <td class="depth-preview">${esc('('+e.directDepth+')')}</td>
+      </tr>`;
+    }
     const opts = ['<option value="">— choose —</option>']
       .concat(SCREEN_LEN_OPTIONS.map(o=>`<option value="${o.value}" ${String(e.screenLen)===o.value?'selected':''}>${o.label}</option>`));
     const preview = e.screenLen != null
@@ -1399,15 +1488,20 @@ document.getElementById('logConfirmTable').addEventListener('change', (e)=>{
 async function addBoreholeLogFiles(files){
   const chips = document.getElementById('logChips');
   for(const f of files){
-    if(!/\.(pdf|txt)$/i.test(f.name)){
-      setStatus('Borehole log files must be .pdf or .txt', true);
+    if(!/\.(pdf|txt|docx)$/i.test(f.name)){
+      setStatus('GW depth source must be .pdf, .txt, or .docx', true);
       continue;
     }
     const chipId = 'log'+(++_logFileSeq);
     chips.insertAdjacentHTML('beforeend', `<span class="file-chip loading" id="${chipId}"><span class="chip-status">⏳</span>${esc(f.name)}</span>`);
     try{
-      const text = await extractLogFileText(f);
-      const found = parseBoreholeLogText(text, f.name);
+      let found;
+      if(/\.docx$/i.test(f.name) || f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'){
+        found = await parseGwFieldDataDocx(await f.arrayBuffer(), f.name);
+      }else{
+        const text = await extractLogFileText(f);
+        found = parseBoreholeLogText(text, f.name);
+      }
       state.boreholeLogEntries.push(...found);
       const chipEl = document.getElementById(chipId);
       if(chipEl) chipEl.outerHTML = `<span class="file-chip" title="${esc(f.name)}"><span class="chip-status">📜</span>${esc(f.name)} (${found.length} well${found.length===1?'':'s'})</span>`;
@@ -2773,8 +2867,10 @@ function getReferenceMap(){
   // exists for that well — manually supplied reference data always wins over a computed one.
   const logDepths = {};
   (state.boreholeLogEntries||[]).forEach(e=>{
-    if(e.screenLen != null){
-      const key = normalizeBoreholeName(e.bh);
+    const key = normalizeBoreholeName(e.bh);
+    if(e.directDepth){
+      logDepths[key] = normalizeDepthDisplay(e.directDepth);
+    }else if(e.screenLen != null){
       logDepths[key] = normalizeDepthDisplay((e.bottom - e.screenLen).toFixed(2) + '-' + e.bottom.toFixed(2) + 'm');
     }
   });
@@ -4122,7 +4218,7 @@ async function saveProjectStateNow(){
     matrixOverride: (document.getElementById('matrixSelect')||{}).value || 'auto',
     resultMatrix: (document.getElementById('resultMatrixSelect')||{}).value || 'ALL',
     texturePref: (document.getElementById('textureSelect')||{}).value || 'standard',
-    boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen})),
+    boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen, directDepth:e.directDepth||null, sourceType:e.sourceType||null})),
     pastedRefText: (document.getElementById('pasteRef')||{}).value || '',
     xlsxRefBlob: state.xlsxRefBlob || null,
     xlsxRefName: state.xlsxRefName || null,
@@ -4251,7 +4347,7 @@ async function exportProjectFile(){
         matrixOverride: (document.getElementById('matrixSelect')||{}).value || 'auto',
         resultMatrix: (document.getElementById('resultMatrixSelect')||{}).value || 'ALL',
         texturePref: (document.getElementById('textureSelect')||{}).value || 'standard',
-        boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen})),
+        boreholeLogEntries: (state.boreholeLogEntries||[]).map(e=>({bh:e.bh, bottom:e.bottom, fileName:e.fileName, screenLen:e.screenLen, directDepth:e.directDepth||null, sourceType:e.sourceType||null})),
         pastedRefText: (document.getElementById('pasteRef')||{}).value || '',
         xlsxRefName: state.xlsxRefName || null,
         xlsxRefBase64,
