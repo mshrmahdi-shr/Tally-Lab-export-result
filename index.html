@@ -754,11 +754,13 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
   </div>
 
   <div class="actions">
-    <button id="magicCsvDxfExportBtn" type="button" disabled>Export DXF</button>
+    <button id="magicCsvDxfNativeBtn" type="button" disabled>Export Native AutoCAD TABLE (.lsp)</button>
+      <button id="magicCsvDxfExportBtn" type="button" class="ghost" disabled title="Not a native AutoCAD TABLE">Export flat DXF (lines/text)</button>
     <button id="magicCsvDxfClearBtn" class="ghost" type="button">Clear</button>
     <span id="magicCsvDxfStatus"></span>
   </div>
 
+  <p class="hint-note">For editable AutoCAD TABLE objects, download the native LISP, APPLOAD it in AutoCAD LT / Civil 3D, and choose a placement point. Flat DXF is linework only.</p>
   <div id="magicCsvDxfMessage"></div>
   <div id="magicCsvDxfPreview" class="magic-csv-dxf-preview">
     <p class="hint-note">Load a valid MAGIC CSV or TSV file to preview CAD tables.</p>
@@ -5106,4 +5108,5 @@ function magicCsvDxfClear(){
 </script>
 
 
+<script src="magic-native-table.js"></script>
 </body></html>
