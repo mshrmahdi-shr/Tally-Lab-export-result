@@ -252,9 +252,9 @@ function magicCsvDxfBuildNativeLisp(models,options={}){
 (princ)
 `;
  return prefix+
- `(setq MAGICCSV:*WIDTHS* '${magicCsvDxfLispList(widths.map(String))})\n`+
- `(setq MAGICCSV:*TITLE_RGB* '${magicCsvDxfLispList(rgb.map(String))})\n`+
- `(setq MAGICCSV:*TABLES* '${data})\n`+suffix;
+ `(setq MAGICCSV:*WIDTHS* ${magicCsvDxfLispList(widths.map(String))})\n`+
+ `(setq MAGICCSV:*TITLE_RGB* ${magicCsvDxfLispList(rgb.map(String))})\n`+
+ `(setq MAGICCSV:*TABLES* ${data})\n`+suffix;
 }
 
 function magicCsvDxfDownloadNative(){
