@@ -4851,51 +4851,58 @@ function magicCsvDxfRenderPreview(models){
 function magicCsvDxfPair(code,val){ return code+"\n"+val+"\n"; }
 function magicCsvDxfLine(layer,x1,y1,x2,y2){
   return magicCsvDxfPair(0,"LINE")+
-    magicCsvDxfPair(100,"AcDbEntity")+
     magicCsvDxfPair(8,layer)+
-    magicCsvDxfPair(100,"AcDbLine")+
-    magicCsvDxfPair(10,x1)+magicCsvDxfPair(20,y1)+magicCsvDxfPair(30,0)+
-    magicCsvDxfPair(11,x2)+magicCsvDxfPair(21,y2)+magicCsvDxfPair(31,0);
+    magicCsvDxfPair(10,x1)+magicCsvDxfPair(20,y1)+
+    magicCsvDxfPair(11,x2)+magicCsvDxfPair(21,y2);
 }
 function magicCsvDxfText(layer,x,y,h,text){
   const safe=String(text??"").replace(/[^\x20-\x7E]/g,"?");
-  return magicCsvDxfPair(0,"TEXT")+magicCsvDxfPair(8,layer)+magicCsvDxfPair(10,x)+magicCsvDxfPair(20,y)+magicCsvDxfPair(40,h)+magicCsvDxfPair(1,safe);
-}
-function magicCsvDxfMText(layer,x,y,h,width,text){
-  const safe=String(text??"").replace(/[^\x20-\x7E]/g,"?");
-  return magicCsvDxfPair(0,"MTEXT")+
-    magicCsvDxfPair(100,"AcDbEntity")+
+  return magicCsvDxfPair(0,"TEXT")+
     magicCsvDxfPair(8,layer)+
-    magicCsvDxfPair(100,"AcDbMText")+
-    magicCsvDxfPair(10,x)+magicCsvDxfPair(20,y)+magicCsvDxfPair(30,0)+
-    magicCsvDxfPair(40,h)+magicCsvDxfPair(41,width)+magicCsvDxfPair(71,5)+
+    magicCsvDxfPair(10,x)+magicCsvDxfPair(20,y)+
+    magicCsvDxfPair(40,h)+
     magicCsvDxfPair(1,safe);
 }
-function magicCsvDxfLineCount(text){
-  const s=String(text??"");
-  return s ? s.split("\\P").length : 1;
+function magicCsvDxfTextLines(layer,xCenter,yCenter,h,width,text){
+  const lines=String(text??"").split("\\P");
+  const gap=h*1.55;
+  let y=yCenter + ((lines.length-1)*gap)/2;
+  let out="";
+  for(const raw of lines){
+    const safe=String(raw??"").replace(/[^\x20-\x7E]/g,"?");
+    out+=magicCsvDxfText(layer,xCenter-(Math.min(safe.length,40)*h*0.28),y,h,safe);
+    y-=gap;
+  }
+  return out;
 }
 function magicCsvDxfDetailedRowHeight(row){
   if(row.role==="sampleSummary") return 12;
   const p=[row.group,...(row.parameters||[])].filter(Boolean).length;
   const r=(row.results||[]).length;
   const s=(row.standards||[]).length;
-  return Math.max(12,3.5+4*Math.max(2,p,r,s));
+  return Math.max(12,4.5+4.2*Math.max(2,p,r,s));
 }
 function magicCsvDxfBuildDxf(models){
-  // Standards-compliant AutoCAD 2000 ASCII DXF.
+  // Conservative AutoCAD R12 ASCII DXF for maximum AutoCAD/LT compatibility.
   let out=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"HEADER");
-  out+=magicCsvDxfPair(9,"$ACADVER")+magicCsvDxfPair(1,"AC1015");
-  out+=magicCsvDxfPair(9,"$INSUNITS")+magicCsvDxfPair(70,4);
+  out+=magicCsvDxfPair(9,"$ACADVER")+magicCsvDxfPair(1,"AC1009");
   out+=magicCsvDxfPair(0,"ENDSEC");
-  out+=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"TABLES")+magicCsvDxfPair(0,"TABLE")+magicCsvDxfPair(2,"LAYER")+magicCsvDxfPair(70,4);
+
+  // Minimal R12 TABLES section: only LTYPE + LAYER.
+  out+=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"TABLES");
+
+  out+=magicCsvDxfPair(0,"TABLE")+magicCsvDxfPair(2,"LTYPE")+magicCsvDxfPair(70,1);
+  out+=magicCsvDxfPair(0,"LTYPE")+magicCsvDxfPair(2,"CONTINUOUS")+magicCsvDxfPair(70,0)+magicCsvDxfPair(3,"Solid line")+magicCsvDxfPair(72,65)+magicCsvDxfPair(73,0)+magicCsvDxfPair(40,0.0);
+  out+=magicCsvDxfPair(0,"ENDTAB");
+
+  out+=magicCsvDxfPair(0,"TABLE")+magicCsvDxfPair(2,"LAYER")+magicCsvDxfPair(70,4);
   for(const l of [["MAGIC_TABLE_GRID",7],["MAGIC_TABLE_TEXT",7],["MAGIC_TABLE_EXCEEDED",1],["MAGIC_TABLE_TITLE",7]]){
-    out+=magicCsvDxfPair(0,"LAYER")+
-      magicCsvDxfPair(100,"AcDbSymbolTableRecord")+
-      magicCsvDxfPair(100,"AcDbLayerTableRecord")+
-      magicCsvDxfPair(2,l[0])+magicCsvDxfPair(70,0)+magicCsvDxfPair(62,l[1])+magicCsvDxfPair(6,"CONTINUOUS");
+    out+=magicCsvDxfPair(0,"LAYER")+magicCsvDxfPair(2,l[0])+magicCsvDxfPair(70,0)+magicCsvDxfPair(62,l[1])+magicCsvDxfPair(6,"CONTINUOUS");
   }
-  out+=magicCsvDxfPair(0,"ENDTAB")+magicCsvDxfPair(0,"ENDSEC")+magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"ENTITIES");
+  out+=magicCsvDxfPair(0,"ENDTAB");
+  out+=magicCsvDxfPair(0,"ENDSEC");
+
+  out+=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"ENTITIES");
   let top=0;
 
   for(const m of models){
@@ -4903,12 +4910,12 @@ function magicCsvDxfBuildDxf(models){
     const total=widths.reduce((a,b)=>a+b,0), titleH=8;
     const xs=[0]; widths.forEach(w=>xs.push(xs[xs.length-1]+w));
 
-    // Title row — one merged cell across full width.
+    // Title row.
     out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top,total,top);
     out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top-titleH,total,top-titleH);
     out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top,0,top-titleH);
     out+=magicCsvDxfLine("MAGIC_TABLE_GRID",total,top,total,top-titleH);
-    out+=magicCsvDxfMText("MAGIC_TABLE_TITLE",total/2,top-titleH/2,3,total-4,m.bh+(m.date?" ("+m.date+")":""));
+    out+=magicCsvDxfTextLines("MAGIC_TABLE_TITLE",total/2,top-titleH/2,3,total-4,m.bh+(m.date?" ("+m.date+")":""));
 
     let y=top-titleH;
 
@@ -4920,9 +4927,9 @@ function magicCsvDxfBuildDxf(models){
         for(const x of xs) out+=magicCsvDxfLine("MAGIC_TABLE_GRID",x,y,x,nextY);
         const cy=(y+nextY)/2;
         const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).join("\\P");
-        out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[0]+widths[0]/2,cy,2.5,widths[0]-4,sample);
-        out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,cy,2.4,widths[1]-4,r.analyses||"");
-        out+=magicCsvDxfMText(r.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+widths[2]/2,cy,2.4,widths[2]-4,r.result||"");
+        out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[0]+widths[0]/2,cy,2.5,widths[0]-4,sample);
+        out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,cy,2.4,widths[1]-4,r.analyses||"");
+        out+=magicCsvDxfTextLines(r.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+widths[2]/2,cy,2.4,widths[2]-4,r.result||"");
         y=nextY;
       }
     }else{
@@ -4934,37 +4941,29 @@ function magicCsvDxfBuildDxf(models){
         const sampleTop=y;
         const sampleBottom=y-heights.reduce((a,b)=>a+b,0);
 
-        // Outer top line for this sample group.
         out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,y,total,y);
 
-        // Horizontal row boundaries. Internal boundaries start after the merged Sample cell.
         for(let j=0;j<heights.length;j++){
           y-=heights[j];
           out+=magicCsvDxfLine("MAGIC_TABLE_GRID",j===heights.length-1?0:xs[1],y,total,y);
         }
 
-        // A, B and C|D outer boundaries span the full sample group.
         for(const x of [0,xs[1],xs[2],xs[4]]) out+=magicCsvDxfLine("MAGIC_TABLE_GRID",x,sampleTop,x,sampleBottom);
-
-        // Result/Standard divider exists only on detail rows, not the summary row (C+D are merged there).
         out+=magicCsvDxfLine("MAGIC_TABLE_GRID",xs[3],sampleTop-heights[0],xs[3],sampleBottom);
 
-        // Merged Sample cell.
         const sampleText=[summary.sample,summary.note,summary.depth?"("+summary.depth+")":""].filter(Boolean).join("\\P");
-        out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[0]+widths[0]/2,(sampleTop+sampleBottom)/2,2.5,widths[0]-4,sampleText);
+        out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[0]+widths[0]/2,(sampleTop+sampleBottom)/2,2.5,widths[0]-4,sampleText);
 
-        // Summary row: analyses in B and exceeded-group list merged across C+D.
         const summaryCy=sampleTop-heights[0]/2;
-        out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,summaryCy,2.35,widths[1]-4,summary.analyses||"");
-        out+=magicCsvDxfMText(summary.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+(widths[2]+widths[3])/2,summaryCy,2.35,widths[2]+widths[3]-4,summary.exceededGroups||"");
+        out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,summaryCy,2.35,widths[1]-4,summary.analyses||"");
+        out+=magicCsvDxfTextLines(summary.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+(widths[2]+widths[3])/2,summaryCy,2.35,widths[2]+widths[3]-4,summary.exceededGroups||"");
 
-        // Detail rows.
         let detailTop=sampleTop-heights[0];
         details.forEach((d,j)=>{
           const h=heights[j+1], cy=detailTop-h/2;
-          out+=magicCsvDxfMText(d.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,cy,2.3,widths[1]-4,[d.group,...(d.parameters||[])].filter(Boolean).join("\\P"));
-          out+=magicCsvDxfMText(d.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+widths[2]/2,cy,2.3,widths[2]-4,(d.results||[]).join("\\P"));
-          out+=magicCsvDxfMText("MAGIC_TABLE_TEXT",xs[3]+widths[3]/2,cy,2.3,widths[3]-4,(d.standards||[]).join("\\P"));
+          out+=magicCsvDxfTextLines(d.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,cy,2.3,widths[1]-4,[d.group,...(d.parameters||[])].filter(Boolean).join("\\P"));
+          out+=magicCsvDxfTextLines(d.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+widths[2]/2,cy,2.3,widths[2]-4,(d.results||[]).join("\\P"));
+          out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[3]+widths[3]/2,cy,2.3,widths[3]-4,(d.standards||[]).join("\\P"));
           detailTop-=h;
         });
 
