@@ -542,6 +542,31 @@
   .copy-hint{
     font-size:11px; color:var(--muted); margin:8px 0 -4px; font-style:italic;
   }
+
+/* MAGIC CSV DXF FEATURE START */
+#magicCsvDxfPanel .magic-csv-dxf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+#magicCsvDxfPanel .magic-csv-dxf-drop{
+  border:2px dashed #3a3d43;border-radius:12px;padding:22px;text-align:center;cursor:pointer;
+  background:#17181c;transition:border-color .15s ease,background .15s ease;
+}
+#magicCsvDxfPanel .magic-csv-dxf-drop.dragover{border-color:var(--accent);background:rgba(201,138,58,.08);}
+#magicCsvDxfPanel .magic-csv-dxf-drop strong{display:block;color:var(--text);margin-bottom:4px;}
+#magicCsvDxfPanel .magic-csv-dxf-file{font-size:12px;color:var(--accent-soft);margin-top:8px;}
+#magicCsvDxfPanel .magic-csv-dxf-options{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:12px;margin-top:16px;}
+#magicCsvDxfPanel .magic-csv-dxf-preview{margin-top:18px;display:flex;flex-direction:column;gap:18px;}
+#magicCsvDxfPanel .magic-dxf-card{background:#fff;color:#172033;border:1px solid #d6d9df;border-radius:10px;padding:16px;overflow:auto;}
+#magicCsvDxfPanel .magic-dxf-title{font-weight:800;text-align:center;background:#f0d5a7;border:1px solid #c8b184;padding:8px;margin-bottom:0;}
+#magicCsvDxfPanel table.magic-dxf-table{width:100%;border-collapse:collapse;font-size:12px;}
+#magicCsvDxfPanel table.magic-dxf-table td,#magicCsvDxfPanel table.magic-dxf-table th{border:1px solid #cfd3da;padding:7px 8px;vertical-align:middle;}
+#magicCsvDxfPanel table.magic-dxf-table th{background:#eef1f5;color:#253248;text-align:center;}
+#magicCsvDxfPanel .magic-exceeded{color:#c42828;font-weight:800;}
+#magicCsvDxfPanel .magic-csv-dxf-error{color:#e2685a;font-size:12px;margin-top:10px;}
+#magicCsvDxfPanel .magic-csv-dxf-ok{color:#8fd2a2;font-size:12px;margin-top:10px;}
+@media(max-width:760px){
+  #magicCsvDxfPanel .magic-csv-dxf-grid,#magicCsvDxfPanel .magic-csv-dxf-options{grid-template-columns:1fr;}
+}
+/* MAGIC CSV DXF FEATURE END */
+
 </style>
 </head>
 <body>
@@ -688,6 +713,58 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
       <p style="color:var(--muted); font-size:13px;">Upload one or more Certificate of Analysis files (PDF or TXT) to begin. If sampling dates in a file only give a date range (not one date per sample), also upload the Sampling Date / Screen Interval reference file — otherwise dates are left blank rather than guessed.</p>
     </div>
   </div>
+
+
+<!-- MAGIC CSV DXF FEATURE START -->
+<div class="panel" id="magicCsvDxfPanel">
+  <h2>CSV -> DXF Tables</h2>
+  <p class="hint-note">Convert MAGIC Summary/Detailed CSV or TSV laboratory data into portable CAD tables. Processing stays in this browser.</p>
+
+  <div id="magicCsvDxfDrop" class="magic-csv-dxf-drop" tabindex="0">
+    <strong>Drop a MAGIC CSV/TSV file here</strong>
+    <span class="hint-note">or click to browse</span>
+    <div id="magicCsvDxfFileName" class="magic-csv-dxf-file"></div>
+    <input id="magicCsvDxfInput" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" hidden>
+  </div>
+
+  <div class="magic-csv-dxf-options">
+    <div class="field">
+      <label for="magicCsvDxfMode">Output mode</label>
+      <select id="magicCsvDxfMode">
+        <option value="auto">Auto Detect</option>
+        <option value="summary">Summary</option>
+        <option value="detailed">Detailed</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="magicCsvDxfTitleFill">Title fill</label>
+      <select id="magicCsvDxfTitleFill">
+        <option value="soil">Soil</option>
+        <option value="groundwater">Groundwater</option>
+        <option value="white">White</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Layout</label>
+      <div style="padding-top:8px;font-size:12px;color:var(--muted);">
+        <label style="display:flex;align-items:center;gap:7px;"><input id="magicCsvDxfReferenceLayout" type="checkbox" checked> Reference layout</label>
+        <label style="display:flex;align-items:center;gap:7px;margin-top:6px;"><input id="magicCsvDxfFullDate" type="checkbox" checked> Full date</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="magicCsvDxfExportBtn" type="button" disabled>Export DXF</button>
+    <button id="magicCsvDxfClearBtn" class="ghost" type="button">Clear</button>
+    <span id="magicCsvDxfStatus"></span>
+  </div>
+
+  <div id="magicCsvDxfMessage"></div>
+  <div id="magicCsvDxfPreview" class="magic-csv-dxf-preview">
+    <p class="hint-note">Load a valid MAGIC CSV or TSV file to preview CAD tables.</p>
+  </div>
+</div>
+<!-- MAGIC CSV DXF FEATURE END -->
 
 </main>
 
@@ -4606,6 +4683,262 @@ if(typeof indexedDB !== 'undefined'){
     if(current) renderProjectBar(current.name);
   }).catch(()=>{});
 }
+
+/* MAGIC CSV DXF FEATURE START */
+const MAGIC_CSV_DXF_SUMMARY_HEADERS = ["BH","Date","SampleID","Depth","Analyses","ExceededGroups","ComplianceText"];
+const MAGIC_CSV_DXF_DETAIL_HEADERS = ["BH","Date","SampleID","Depth","Analyses","ExceededGroup","Parameter","ResultValue","StandardValue","ComplianceText"];
+const magicCsvDxfState = { fileName:"", parsed:null, models:[] };
+
+function magicCsvDxfDetectDelimiter(text){
+  const first=(text||"").replace(/^\uFEFF/,"").split(/\r?\n/)[0]||"";
+  return first.includes("\t") ? "\t" : ",";
+}
+function magicCsvDxfParseDelimited(text, delimiter){
+  text=(text||"").replace(/^\uFEFF/,"");
+  const rows=[]; let row=[], field="", quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(quoted && text[i+1]==='"'){ field+='"'; i++; }
+      else quoted=!quoted;
+    }else if(ch===delimiter && !quoted){ row.push(field); field=""; }
+    else if((ch==="\n"||ch==="\r") && !quoted){
+      if(ch==="\r" && text[i+1]==="\n") i++;
+      row.push(field); field="";
+      if(row.some(v=>v!=="")) rows.push(row);
+      row=[];
+    }else field+=ch;
+  }
+  if(quoted) throw new Error("Malformed CSV/TSV: an opening quote was not closed.");
+  if(field!=="" || row.length){ row.push(field); if(row.some(v=>v!=="")) rows.push(row); }
+  return rows;
+}
+function magicCsvDxfDetectSchema(headers){
+  const h=headers.map(x=>String(x).trim());
+  const has=req=>req.every(x=>h.includes(x));
+  if(has(MAGIC_CSV_DXF_DETAIL_HEADERS)) return "detailed";
+  if(has(MAGIC_CSV_DXF_SUMMARY_HEADERS)) return "summary";
+  return null;
+}
+function magicCsvDxfRowsFromText(text){
+  if(!String(text||"").trim()) throw new Error("The CSV/TSV file is empty.");
+  const delimiter=magicCsvDxfDetectDelimiter(text);
+  const matrix=magicCsvDxfParseDelimited(text,delimiter);
+  if(matrix.length<2) throw new Error("The CSV/TSV file does not contain data rows.");
+  const headers=matrix[0].map(x=>String(x||"").trim());
+  const schema=magicCsvDxfDetectSchema(headers);
+  if(!schema) throw new Error("Unsupported CSV/TSV headers. Use a MAGIC Summary or Detailed export.");
+  const rows=matrix.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,String(r[i]??"").trim()])));
+  if(!rows.some(r=>r.BH)) throw new Error("No borehole rows were found.");
+  return {schema,headers,rows};
+}
+function magicCsvDxfSplitSample(sample){
+  const m=String(sample||"").match(/^(.*?)\s*(\(Field Duplicate\))\s*$/i);
+  return m ? {base:m[1].trim(),note:m[2]} : {base:String(sample||"").trim(),note:""};
+}
+function magicCsvDxfResolveTables(parsed,mode="auto"){
+  const actual=mode==="auto"?parsed.schema:mode;
+  if(actual==="detailed" && parsed.schema!=="detailed") throw new Error("Detailed mode requires the Detailed CSV schema.");
+  const groups=new Map();
+  for(const r of parsed.rows){
+    const k=(r.BH||"")+"\u0001"+(r.Date||"");
+    if(!groups.has(k)) groups.set(k,[]);
+    groups.get(k).push(r);
+  }
+  const out=[];
+  for(const rows of groups.values()){
+    const first=rows[0];
+    if(actual==="summary"){
+      const sr=parsed.schema==="summary" ? rows : (()=>{
+        const bySample=new Map();
+        for(const r of rows){
+          const sk=[r.SampleID,r.Depth,r.Analyses].join("\u0001");
+          if(!bySample.has(sk)) bySample.set(sk,{...r,ExceededGroups:[],ComplianceText:r.ComplianceText||""});
+          const x=bySample.get(sk);
+          if(r.ExceededGroup && !x.ExceededGroups.includes(r.ExceededGroup)) x.ExceededGroups.push(r.ExceededGroup);
+        }
+        return [...bySample.values()].map(x=>({...x,ExceededGroups:x.ExceededGroups.join(", ")}));
+      })();
+      out.push({bh:first.BH,date:first.Date,mode:"summary",rows:sr.map(r=>{
+        const s=magicCsvDxfSplitSample(r.SampleID);
+        return {sample:s.base,note:s.note,depth:r.Depth||"",analyses:r.Analyses||"",result:r.ExceededGroups||r.ComplianceText||"",exceeded:!!r.ExceededGroups};
+      })});
+    }else{
+      const bySample=new Map();
+      for(const r of rows){
+        const sk=[r.SampleID,r.Depth,r.Analyses].join("\u0001");
+        if(!bySample.has(sk)) bySample.set(sk,[]);
+        bySample.get(sk).push(r);
+      }
+      const tableRows=[];
+      for(const srows of bySample.values()){
+        const s0=srows[0], s=magicCsvDxfSplitSample(s0.SampleID);
+        const byGroup=new Map();
+        for(const r of srows){
+          const g=r.ExceededGroup||r.Analyses||"";
+          if(!byGroup.has(g)) byGroup.set(g,[]);
+          byGroup.get(g).push(r);
+        }
+        let firstGroup=true;
+        for(const [g,grows] of byGroup){
+          tableRows.push({
+            sample:firstGroup?s.base:"",note:firstGroup?s.note:"",depth:firstGroup?(s0.Depth||""):"",
+            analyses:firstGroup?(s0.Analyses||""):"",
+            group:g,
+            parameters:grows.map(x=>x.Parameter||"").filter(Boolean),
+            results:grows.map(x=>x.ResultValue||""),
+            standards:grows.map(x=>x.StandardValue||""),
+            exceeded:grows.some(x=>x.ExceededGroup)
+          });
+          firstGroup=false;
+        }
+      }
+      out.push({bh:first.BH,date:first.Date,mode:"detailed",rows:tableRows});
+    }
+  }
+  return out;
+}
+function magicCsvDxfEscapeHtml(s){
+  return String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+function magicCsvDxfTitleColor(){
+  const v=document.getElementById("magicCsvDxfTitleFill").value;
+  return v==="groundwater" ? "#ccffff" : v==="white" ? "#ffffff" : "#ffecb3";
+}
+function magicCsvDxfRenderPreview(models){
+  const wrap=document.getElementById("magicCsvDxfPreview");
+  const fill=magicCsvDxfTitleColor();
+  wrap.innerHTML=models.map(m=>{
+    const heads=m.mode==="summary"
+      ? "<tr><th>Sample / Depth</th><th>Analyses</th><th>Exceeded / Compliance</th></tr>"
+      : "<tr><th>Sample / Depth</th><th>Group / Parameter</th><th>Result</th><th>Standard</th></tr>";
+    const body=m.rows.map(r=>{
+      const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).map(magicCsvDxfEscapeHtml).join("<br>");
+      if(m.mode==="summary"){
+        return "<tr><td>"+sample+"</td><td>"+magicCsvDxfEscapeHtml(r.analyses)+"</td><td class=\""+(r.exceeded?"magic-exceeded":"")+"\">"+magicCsvDxfEscapeHtml(r.result)+"</td></tr>";
+      }
+      return "<tr><td>"+sample+"</td><td class=\"magic-exceeded\">"+magicCsvDxfEscapeHtml([r.group,...r.parameters].filter(Boolean).join(" / "))+"</td><td class=\"magic-exceeded\">"+magicCsvDxfEscapeHtml((r.results||[]).join(" / "))+"</td><td>"+magicCsvDxfEscapeHtml((r.standards||[]).join(" / "))+"</td></tr>";
+    }).join("");
+    return "<div class=\"magic-dxf-card\"><div class=\"magic-dxf-title\" style=\"background:"+fill+"\">"+magicCsvDxfEscapeHtml(m.bh+(m.date?" ("+m.date+")":""))+"</div><table class=\"magic-dxf-table\">"+heads+"<tbody>"+body+"</tbody></table></div>";
+  }).join("");
+}
+function magicCsvDxfPair(code,val){ return code+"\n"+val+"\n"; }
+function magicCsvDxfLine(layer,x1,y1,x2,y2){
+  return magicCsvDxfPair(0,"LINE")+magicCsvDxfPair(8,layer)+magicCsvDxfPair(10,x1)+magicCsvDxfPair(20,y1)+magicCsvDxfPair(11,x2)+magicCsvDxfPair(21,y2);
+}
+function magicCsvDxfText(layer,x,y,h,text){
+  const safe=String(text??"").replace(/[^\x20-\x7E]/g,"?");
+  return magicCsvDxfPair(0,"TEXT")+magicCsvDxfPair(8,layer)+magicCsvDxfPair(10,x)+magicCsvDxfPair(20,y)+magicCsvDxfPair(40,h)+magicCsvDxfPair(1,safe);
+}
+function magicCsvDxfBuildDxf(models){
+  let out=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"HEADER")+magicCsvDxfPair(0,"ENDSEC");
+  out+=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"TABLES")+magicCsvDxfPair(0,"TABLE")+magicCsvDxfPair(2,"LAYER")+magicCsvDxfPair(70,4);
+  for(const l of [["MAGIC_TABLE_GRID",7],["MAGIC_TABLE_TEXT",7],["MAGIC_TABLE_EXCEEDED",1],["MAGIC_TABLE_TITLE",2]]){
+    out+=magicCsvDxfPair(0,"LAYER")+magicCsvDxfPair(2,l[0])+magicCsvDxfPair(70,0)+magicCsvDxfPair(62,l[1])+magicCsvDxfPair(6,"CONTINUOUS");
+  }
+  out+=magicCsvDxfPair(0,"ENDTAB")+magicCsvDxfPair(0,"ENDSEC")+magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"ENTITIES");
+  let top=0;
+  for(const m of models){
+    const widths=m.mode==="summary"?[36,58,32]:[36,58,18,18];
+    const total=widths.reduce((a,b)=>a+b,0), titleH=8,rowH=12;
+    const rowCount=m.rows.length, bottom=top-titleH-rowCount*rowH;
+    const xs=[0]; widths.forEach(w=>xs.push(xs[xs.length-1]+w));
+    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top,total,top)+magicCsvDxfLine("MAGIC_TABLE_GRID",0,top-titleH,total,top-titleH);
+    for(let r=1;r<=rowCount;r++){ const y=top-titleH-r*rowH; out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,y,total,y); }
+    for(const x of xs){ out+=magicCsvDxfLine("MAGIC_TABLE_GRID",x,top-titleH,x,bottom); }
+    out+=magicCsvDxfText("MAGIC_TABLE_TITLE",2,top-5,3,m.bh+(m.date?" ("+m.date+")":""));
+    m.rows.forEach((r,idx)=>{
+      const y=top-titleH-idx*rowH-7;
+      const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).join(" | ");
+      out+=magicCsvDxfText("MAGIC_TABLE_TEXT",2,y,2.5,sample);
+      if(m.mode==="summary"){
+        out+=magicCsvDxfText("MAGIC_TABLE_TEXT",xs[1]+2,y,2.4,r.analyses||"");
+        out+=magicCsvDxfText(r.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+2,y,2.4,r.result||"");
+      }else{
+        out+=magicCsvDxfText("MAGIC_TABLE_EXCEEDED",xs[1]+2,y,2.3,[r.group,...r.parameters].filter(Boolean).join(" | "));
+        out+=magicCsvDxfText("MAGIC_TABLE_EXCEEDED",xs[2]+2,y,2.3,(r.results||[]).join(" | "));
+        out+=magicCsvDxfText("MAGIC_TABLE_TEXT",xs[3]+2,y,2.3,(r.standards||[]).join(" | "));
+      }
+    });
+    top=bottom-10;
+  }
+  out+=magicCsvDxfPair(0,"ENDSEC")+magicCsvDxfPair(0,"EOF");
+  return out;
+}
+function magicCsvDxfSetMessage(text,isError=false){
+  const el=document.getElementById("magicCsvDxfMessage");
+  el.className=isError?"magic-csv-dxf-error":"magic-csv-dxf-ok";
+  el.textContent=text||"";
+}
+function magicCsvDxfRefresh(){
+  const btn=document.getElementById("magicCsvDxfExportBtn");
+  if(!magicCsvDxfState.parsed){ btn.disabled=true; return; }
+  try{
+    const mode=document.getElementById("magicCsvDxfMode").value;
+    magicCsvDxfState.models=magicCsvDxfResolveTables(magicCsvDxfState.parsed,mode);
+    if(!magicCsvDxfState.models.length) throw new Error("No resolved borehole tables were produced.");
+    magicCsvDxfRenderPreview(magicCsvDxfState.models);
+    btn.disabled=false;
+    magicCsvDxfSetMessage(magicCsvDxfState.models.length+" table(s) ready for DXF export.");
+  }catch(err){
+    magicCsvDxfState.models=[];
+    btn.disabled=true;
+    document.getElementById("magicCsvDxfPreview").innerHTML="<p class=\"hint-note\">Fix the validation issue to preview tables.</p>";
+    magicCsvDxfSetMessage(err.message,true);
+  }
+}
+async function magicCsvDxfLoadFile(file){
+  if(!file) return;
+  document.getElementById("magicCsvDxfFileName").textContent=file.name;
+  try{
+    const text=await file.text();
+    magicCsvDxfState.fileName=file.name;
+    magicCsvDxfState.parsed=magicCsvDxfRowsFromText(text);
+    magicCsvDxfRefresh();
+  }catch(err){
+    magicCsvDxfState.parsed=null; magicCsvDxfState.models=[];
+    document.getElementById("magicCsvDxfExportBtn").disabled=true;
+    document.getElementById("magicCsvDxfPreview").innerHTML="<p class=\"hint-note\">No valid MAGIC table data loaded.</p>";
+    magicCsvDxfSetMessage(err.message,true);
+  }
+}
+function magicCsvDxfDownload(){
+  if(!magicCsvDxfState.models.length) return;
+  const dxf=magicCsvDxfBuildDxf(magicCsvDxfState.models);
+  const blob=new Blob([dxf],{type:"application/dxf;charset=us-ascii"});
+  const a=document.createElement("a");
+  const stamp=new Date().toISOString().slice(0,10);
+  a.href=URL.createObjectURL(blob);
+  a.download="MAGIC_Contaminant_Tables_"+stamp+".dxf";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },400);
+  magicCsvDxfSetMessage("DXF exported successfully.");
+}
+function magicCsvDxfClear(){
+  magicCsvDxfState.fileName=""; magicCsvDxfState.parsed=null; magicCsvDxfState.models=[];
+  document.getElementById("magicCsvDxfInput").value="";
+  document.getElementById("magicCsvDxfFileName").textContent="";
+  document.getElementById("magicCsvDxfPreview").innerHTML="<p class=\"hint-note\">Load a valid MAGIC CSV or TSV file to preview CAD tables.</p>";
+  document.getElementById("magicCsvDxfExportBtn").disabled=true;
+  magicCsvDxfSetMessage("");
+}
+(function magicCsvDxfInit(){
+  const drop=document.getElementById("magicCsvDxfDrop");
+  const input=document.getElementById("magicCsvDxfInput");
+  if(!drop||!input) return;
+  drop.addEventListener("click",()=>input.click());
+  drop.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); input.click(); }});
+  drop.addEventListener("dragover",e=>{ e.preventDefault(); drop.classList.add("dragover"); });
+  drop.addEventListener("dragleave",()=>drop.classList.remove("dragover"));
+  drop.addEventListener("drop",e=>{ e.preventDefault(); drop.classList.remove("dragover"); magicCsvDxfLoadFile(e.dataTransfer.files[0]); });
+  input.addEventListener("change",()=>magicCsvDxfLoadFile(input.files[0]));
+  document.getElementById("magicCsvDxfMode").addEventListener("change",magicCsvDxfRefresh);
+  document.getElementById("magicCsvDxfTitleFill").addEventListener("change",()=>{ if(magicCsvDxfState.models.length) magicCsvDxfRenderPreview(magicCsvDxfState.models); });
+  document.getElementById("magicCsvDxfExportBtn").addEventListener("click",magicCsvDxfDownload);
+  document.getElementById("magicCsvDxfClearBtn").addEventListener("click",magicCsvDxfClear);
+})();
+/* MAGIC CSV DXF FEATURE END */
+
 </script>
 
 
