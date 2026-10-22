@@ -4883,26 +4883,68 @@ function magicCsvDxfDetailedRowHeight(row){
   return Math.max(12,4.5+4.2*Math.max(2,p,r,s));
 }
 function magicCsvDxfBuildDxf(models){
-  // Conservative AutoCAD R12 ASCII DXF for maximum AutoCAD/LT compatibility.
-  let out=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"HEADER");
-  out+=magicCsvDxfPair(9,"$ACADVER")+magicCsvDxfPair(1,"AC1009");
-  out+=magicCsvDxfPair(0,"ENDSEC");
+  // AutoCAD R12 ASCII DXF. Emit all standard symbol tables, in AutoCAD order.
+  // In particular, omitting APPID / STYLE / DIMSTYLE makes LT report
+  // "Error in APPID Table" and discard the entire drawing.
+  const p=magicCsvDxfPair;
+  const record=(kind,attributes)=>
+    p(0,kind)+attributes.map(([code,value])=>p(code,value)).join("");
+  const table=(name,records)=>
+    p(0,"TABLE")+p(2,name)+p(70,records.length)+records.join("")+p(0,"ENDTAB");
 
-  // Minimal R12 TABLES section: only LTYPE + LAYER.
-  out+=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"TABLES");
+  let out=p(0,"SECTION")+p(2,"HEADER");
+  out+=p(9,"$ACADVER")+p(1,"AC1009");
+  out+=p(9,"$DWGCODEPAGE")+p(3,"ANSI_1252");
+  out+=p(9,"$CLAYER")+p(8,"0");
+  out+=p(9,"$TEXTSTYLE")+p(7,"Standard");
+  out+=p(0,"ENDSEC");
 
-  out+=magicCsvDxfPair(0,"TABLE")+magicCsvDxfPair(2,"LTYPE")+magicCsvDxfPair(70,1);
-  out+=magicCsvDxfPair(0,"LTYPE")+magicCsvDxfPair(2,"CONTINUOUS")+magicCsvDxfPair(70,0)+magicCsvDxfPair(3,"Solid line")+magicCsvDxfPair(72,65)+magicCsvDxfPair(73,0)+magicCsvDxfPair(40,0.0);
-  out+=magicCsvDxfPair(0,"ENDTAB");
+  out+=p(0,"SECTION")+p(2,"TABLES");
+  out+=table("VPORT",[record("VPORT",[
+    [2,"*Active"],[70,0],
+    [10,0],[20,0],[11,1],[21,1],
+    [12,50],[22,-50],[13,0],[23,0],
+    [14,0.5],[24,0.5],[15,0.5],[25,0.5],
+    [16,0],[26,0],[36,1],[17,0],[27,0],[37,0],
+    [40,1000],[41,1.34],[42,50],[43,0],[44,0],[50,0],[51,0],
+    [71,0],[72,1000],[73,1],[74,3],[75,0],[76,0],[77,0],[78,0]
+  ])]);
+  out+=table("LTYPE",["ByBlock","ByLayer","CONTINUOUS"].map(name=>
+    record("LTYPE",[[2,name],[70,0],[3,"Solid line"],[72,65],[73,0],[40,0]])));
+  out+=table("LAYER",[
+    ["0",7],
+    ["MAGIC_TABLE_GRID",7],
+    ["MAGIC_TABLE_TEXT",7],
+    ["MAGIC_TABLE_EXCEEDED",1],
+    ["MAGIC_TABLE_TITLE",7]
+  ].map(([name,color])=>record("LAYER",[
+    [2,name],[70,0],[62,color],[6,"CONTINUOUS"]
+  ])));
+  out+=table("STYLE",[record("STYLE",[
+    [2,"Standard"],[70,0],[40,0],[41,1],[50,0],
+    [71,0],[42,2.5],[3,"txt"],[4,""]
+  ])]);
+  out+=table("VIEW",[]);
+  out+=table("UCS",[]);
+  out+=table("APPID",[record("APPID",[[2,"ACAD"],[70,0]])]);
+  out+=table("DIMSTYLE",[record("DIMSTYLE",[
+    [105,"2B"],[2,"Standard"],[70,0],[40,1],[41,2.5],
+    [42,0.625],[43,3.75],[44,1.25],
+    [140,2.5],[141,2.5],[147,0.625]
+  ])]);
+  out+=p(0,"ENDSEC");
 
-  out+=magicCsvDxfPair(0,"TABLE")+magicCsvDxfPair(2,"LAYER")+magicCsvDxfPair(70,4);
-  for(const l of [["MAGIC_TABLE_GRID",7],["MAGIC_TABLE_TEXT",7],["MAGIC_TABLE_EXCEEDED",1],["MAGIC_TABLE_TITLE",7]]){
-    out+=magicCsvDxfPair(0,"LAYER")+magicCsvDxfPair(2,l[0])+magicCsvDxfPair(70,0)+magicCsvDxfPair(62,l[1])+magicCsvDxfPair(6,"CONTINUOUS");
+  // Standard R12 model/paper space block definitions.
+  out+=p(0,"SECTION")+p(2,"BLOCKS");
+  for(const name of ["$Model_Space","$Paper_Space"]){
+    out+=record("BLOCK",[
+      [8,"0"],[2,name],[70,0],[10,0],[20,0],[30,0],[3,name],[1,""]
+    ]);
+    out+=record("ENDBLK",[[8,"0"]]);
   }
-  out+=magicCsvDxfPair(0,"ENDTAB");
-  out+=magicCsvDxfPair(0,"ENDSEC");
+  out+=p(0,"ENDSEC");
 
-  out+=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"ENTITIES");
+  out+=p(0,"SECTION")+p(2,"ENTITIES");
   let top=0;
 
   for(const m of models){
