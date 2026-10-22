@@ -278,6 +278,8 @@
   }
 
   /* ---- rendered report (light card, matches the firm's tally-table style) ---- */
+  .copy-btn.dxf-btn{background:var(--accent);color:#171717;border-color:var(--accent);font-weight:700;}
+  .copy-btn.dxf-btn:disabled{opacity:.5;cursor:wait;}
   #reportWrap{display:flex; flex-direction:column; gap:28px;}
   .report{
     background:linear-gradient(180deg, #ffffff 0%, #f6f7f9 100%);
@@ -709,6 +711,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
   <div class="panel">
     <h2>📊 &nbsp;Step 2 — Output</h2>
+    <p id="nativeDxfStatus" class="hint-note" role="status" aria-live="polite"></p>
     <div id="reportWrap">
       <p style="color:var(--muted); font-size:13px;">Upload one or more Certificate of Analysis files (PDF or TXT) to begin. If sampling dates in a file only give a date range (not one date per sample), also upload the Sampling Date / Screen Interval reference file — otherwise dates are left blank rather than guessed.</p>
     </div>
@@ -717,8 +720,8 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <!-- MAGIC CSV DXF FEATURE START -->
 <div class="panel" id="magicCsvDxfPanel">
-  <h2>CSV -> DXF Tables</h2>
-  <p class="hint-note">Convert MAGIC Summary/Detailed CSV or TSV laboratory data into portable CAD tables. Processing stays in this browser.</p>
+  <h2>Optional: import a MAGIC CSV</h2>
+  <p class="hint-note">Already have a MAGIC CSV/TSV? Load it here for editable AutoCAD tables. For results read in Tally, use Download AutoCAD DXF in the report above.</p>
 
   <div id="magicCsvDxfDrop" class="magic-csv-dxf-drop" tabindex="0">
     <strong>Drop a MAGIC CSV/TSV file here</strong>
@@ -754,13 +757,12 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
   </div>
 
   <div class="actions">
-    <button id="magicCsvDxfNativeBtn" type="button" disabled>Export Native AutoCAD TABLE (.lsp)</button>
-      <button id="magicCsvDxfExportBtn" type="button" class="ghost" disabled title="Not a native AutoCAD TABLE">Export flat DXF (lines/text)</button>
+    <button id="magicCsvDxfExportBtn" type="button" disabled>Download AutoCAD DXF</button>
     <button id="magicCsvDxfClearBtn" class="ghost" type="button">Clear</button>
     <span id="magicCsvDxfStatus"></span>
   </div>
 
-  <p class="hint-note">For editable AutoCAD TABLE objects, download the native LISP, APPLOAD it in AutoCAD LT / Civil 3D, and choose a placement point. Flat DXF is linework only.</p>
+  <p class="hint-note">Downloads editable AutoCAD TABLE objects in a .dxf file. Open the file directly in AutoCAD.</p>
   <div id="magicCsvDxfMessage"></div>
   <div id="magicCsvDxfPreview" class="magic-csv-dxf-preview">
     <p class="hint-note">Load a valid MAGIC CSV or TSV file to preview CAD tables.</p>
@@ -794,6 +796,8 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
+<script src="native-dxf-base.js"></script>
+<script src="magic-native-table.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
@@ -1645,6 +1649,7 @@ function processNow(){
     if(gwPanel) gwPanel.classList.remove('on');
     window._copyBlocks = {};
     window._csvExports = {};
+    document.getElementById('nativeDxfStatus').textContent = '';
     let debugCombined = '';
 
     if(coaFiles.length || agatFiles.length){
@@ -2440,6 +2445,7 @@ function buildSitePlanReportEl(title, samplesMap, unit, catSet){
       <div class="report-actions">
         <button class="copy-btn" data-copy-block="${fullTsvKey}">📋 Copy full table</button>
         <button class="copy-btn" data-csv-export="sp_all_summary_${title.replace(/\W/g,'')}" title="Export every borehole in this report as one Summary CSV for AutoCAD">⬇ ALL SUMMARY CSV</button>
+        <button class="copy-btn dxf-btn" data-dxf-export="sp_all_detailed_${title.replace(/\W/g,'')}" data-dxf-fill="${unit==='ppm'?'soil':'groundwater'}" title="Download these displayed results as editable AutoCAD tables">⬇ Download AutoCAD DXF</button>
         <button class="copy-btn" data-csv-export="sp_all_detailed_${title.replace(/\W/g,'')}" title="Export every borehole in this report as one Detailed CSV for AutoCAD">⬇ ALL DETAILED CSV</button>
       </div>
     </div>
@@ -2469,6 +2475,7 @@ function buildSitePlanReportEl(title, samplesMap, unit, catSet){
         <span class="bh-name">${esc(g.bh)}</span>${g.members.length>1?`<span class="bh-rounds-count">${g.members.length} entries</span>`:''}
         <button class="copy-btn" data-copy-block="${blockId}" title="Copy this borehole's full record as tab-separated text">📋 Copy block</button>
         <button class="copy-btn" data-csv-export="sp_sum_${blockId}" title="Export this borehole as a Summary CSV for AutoCAD">⬇ SUMMARY CSV</button>
+        <button class="copy-btn dxf-btn" data-dxf-export="sp_det_${blockId}" data-dxf-fill="${unit==='ppm'?'soil':'groundwater'}" title="Download these displayed results as editable AutoCAD tables">⬇ Download AutoCAD DXF</button>
         <button class="copy-btn" data-csv-export="sp_det_${blockId}" title="Export this borehole as a Detailed CSV for AutoCAD">⬇ DETAILED CSV</button>
       </td></tr>`;
 
@@ -3452,6 +3459,11 @@ function ensureCopyHandler(){
       }
       return;
     }
+    if(btn && btn.dataset.dxfExport){
+      e.stopPropagation();
+      downloadReportDxf(btn);
+      return;
+    }
     if(btn && btn.dataset.csvExport){
       e.stopPropagation();
       const csv = (window._csvExports||{})[btn.dataset.csvExport];
@@ -3996,6 +4008,7 @@ function renderSampleRowsForLabel(id, s, label, catSet){
 // never included e.g. Table 9 must never be shown as if it passed Table 9.
 function buildBoreholeReportEl(boreholes, samples, ctx, label){
   const isSoil = ctx.matrix === 'SOIL';
+  const exportScope = ctx.matrix + '_' + safeFileName(label);
   const unit = isSoil ? 'ppm' : 'µg/L';
   const textureNote = isSoil ? (ctx.texturePref==='bracket' ? ', Medium/Fine-Textured Soil' : ', Coarse-Textured Soil') : '';
   const colHeader = `${label} SCS${textureNote}`.toUpperCase() + ` (${unit})`;
@@ -4019,7 +4032,7 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
   const theme = reportThemeFor(label, ctx);
   el.className = 'report report--theme-' + theme;
 
-  const fullTsvKey = 'full_'+label.replace(/\W/g,'');
+  const fullTsvKey = 'full_'+exportScope;
   let html = `<div class="report-head">
       <div>
         <h2>${title}<span class="report-tablebadge">${esc(label)}</span></h2>
@@ -4028,8 +4041,9 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
       </div>
       <div class="report-actions">
         <button class="copy-btn" data-copy-block="${fullTsvKey}">📋 Copy full table</button>
-        <button class="copy-btn" data-csv-export="all_summary_${label.replace(/\W/g,'')}" title="Export every borehole in this report as one Summary CSV for AutoCAD">⬇ ALL SUMMARY CSV</button>
-        <button class="copy-btn" data-csv-export="all_detailed_${label.replace(/\W/g,'')}" title="Export every borehole in this report as one Detailed CSV for AutoCAD">⬇ ALL DETAILED CSV</button>
+        <button class="copy-btn" data-csv-export="all_summary_${exportScope}" title="Export every borehole in this report as one Summary CSV for AutoCAD">⬇ ALL SUMMARY CSV</button>
+        <button class="copy-btn dxf-btn" data-dxf-export="all_detailed_${exportScope}" data-dxf-fill="${isSoil?'soil':'groundwater'}" title="Download these displayed results as editable AutoCAD tables">⬇ Download AutoCAD DXF</button>
+        <button class="copy-btn" data-csv-export="all_detailed_${exportScope}" title="Export every borehole in this report as one Detailed CSV for AutoCAD">⬇ ALL DETAILED CSV</button>
       </div>
     </div>
     <p class="copy-hint">Click any cell to copy it. Use “Copy block” to grab a borehole's full record (every sampling round) as tab-separated text.</p>
@@ -4056,7 +4070,7 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
 
   filtered.forEach((bh, gi)=>{
     const roundCount = bh.filteredRounds.length;
-    const blockId = 'blk_'+label.replace(/\W/g,'')+'_'+gi;
+    const blockId = 'blk_'+exportScope+'_'+gi;
     const blockTsvRows = [[bh.displayName, '', '', '']];
     const blockClipRows = [`<tr><td colspan="4" style="${CLIP_TD}background:${clipTheme.head};color:${clipTheme.headText};font-weight:bold;text-align:center;">${esc(bh.displayName)}</td></tr>`];
     const summaryLines = [SUMMARY_HEADER];
@@ -4079,6 +4093,7 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
         <button class="copy-btn rename-btn" data-rename-bh="${esc(bh.name)}" data-rename-current="${esc(bh.displayName)}" title="Rename this borehole — matching names elsewhere will be grouped under the new name">✏️ Rename</button>
         <button class="copy-btn" data-copy-block="${blockId}" title="Copy this borehole's full record as tab-separated text">📋 Copy block</button>
         <button class="copy-btn" data-csv-export="sum_${blockId}" title="Export this borehole as a Summary CSV for AutoCAD">⬇ SUMMARY CSV</button>
+        <button class="copy-btn dxf-btn" data-dxf-export="det_${blockId}" data-dxf-fill="${isSoil?'soil':'groundwater'}" title="Download these displayed results as editable AutoCAD tables">⬇ Download AutoCAD DXF</button>
         <button class="copy-btn" data-csv-export="det_${blockId}" title="Export this borehole as a Detailed CSV for AutoCAD">⬇ DETAILED CSV</button>
       </td></tr>`;
 
@@ -4125,11 +4140,11 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
     fullClipRows.push(...blockClipRows);
     (window._copyBlocks = window._copyBlocks || {})[blockId] = {tsv: blockTsv, html: clipWrap([clipColHeader].concat(blockClipRows).join(''))};
     (window._csvExports = window._csvExports || {})['sum_'+blockId] = {
-      name: safeFileName(bh.displayName + '_AutoCAD_Summary_' + label) + '.csv',
+      name: safeFileName(bh.displayName + '_' + ctx.matrix + '_AutoCAD_Summary_' + label) + '.csv',
       text: summaryLines.join('\r\n')
     };
     (window._csvExports = window._csvExports || {})['det_'+blockId] = {
-      name: safeFileName(bh.displayName + '_AutoCAD_Detailed_' + label) + '.csv',
+      name: safeFileName(bh.displayName + '_' + ctx.matrix + '_AutoCAD_Detailed_' + label) + '.csv',
       text: detailedLines.join('\r\n')
     };
   });
@@ -4142,12 +4157,12 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
 
   const fullReportTsv = reportRows.map(r=>r.join('\t')).join('\n');
   (window._copyBlocks = window._copyBlocks || {})[fullTsvKey] = {tsv: fullReportTsv, html: clipWrap(fullClipRows.join(''))};
-  (window._csvExports = window._csvExports || {})['all_summary_'+label.replace(/\W/g,'')] = {
-    name: safeFileName('Project_AutoCAD_Summary_' + label) + '.csv',
+  (window._csvExports = window._csvExports || {})['all_summary_'+exportScope] = {
+    name: safeFileName('Project_' + ctx.matrix + '_AutoCAD_Summary_' + label) + '.csv',
     text: allSummaryLines.join('\r\n')
   };
-  (window._csvExports = window._csvExports || {})['all_detailed_'+label.replace(/\W/g,'')] = {
-    name: safeFileName('Project_AutoCAD_Detailed_' + label) + '.csv',
+  (window._csvExports = window._csvExports || {})['all_detailed_'+exportScope] = {
+    name: safeFileName('Project_' + ctx.matrix + '_AutoCAD_Detailed_' + label) + '.csv',
     text: allDetailedLines.join('\r\n')
   };
 
@@ -4743,7 +4758,7 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
   if(actual==="detailed" && parsed.schema!=="detailed") throw new Error("Detailed mode requires the Detailed CSV schema.");
   const groups=new Map();
   for(const r of parsed.rows){
-    const k=(r.BH||"")+"\u0001"+(r.Date||"");
+    const k=JSON.stringify([r.BH||"",r.Date||""]);
     if(!groups.has(k)) groups.set(k,[]);
     groups.get(k).push(r);
   }
@@ -4754,7 +4769,7 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
       const sr=parsed.schema==="summary" ? rows : (()=>{
         const bySample=new Map();
         for(const r of rows){
-          const sk=[r.SampleID,r.Depth,r.Analyses].join("\u0001");
+          const sk=JSON.stringify([r.SampleID,r.Depth,r.Analyses]);
           if(!bySample.has(sk)) bySample.set(sk,{...r,ExceededGroups:[],ComplianceText:r.ComplianceText||""});
           const x=bySample.get(sk);
           if(r.ExceededGroup && !x.ExceededGroups.includes(r.ExceededGroup)) x.ExceededGroups.push(r.ExceededGroup);
@@ -4768,7 +4783,7 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
     }else{
       const bySample=new Map();
       for(const r of rows){
-        const sk=[r.SampleID,r.Depth,r.Analyses].join("\u0001");
+        const sk=JSON.stringify([r.SampleID,r.Depth,r.Analyses]);
         if(!bySample.has(sk)) bySample.set(sk,[]);
         bySample.get(sk).push(r);
       }
@@ -4777,6 +4792,7 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
         const s0=srows[0], s=magicCsvDxfSplitSample(s0.SampleID);
         const byGroup=new Map();
         for(const r of srows){
+          if(!r.ExceededGroup && !r.Parameter && !r.ResultValue && !r.StandardValue)continue;
           const g=r.ExceededGroup||r.Analyses||"";
           if(!byGroup.has(g)) byGroup.set(g,[]);
           byGroup.get(g).push(r);
@@ -4784,10 +4800,10 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
         const groupRows=[...byGroup.entries()].map(([g,grows])=>({
           role:"detail",
           group:g,
-          parameters:grows.map(x=>x.Parameter||"").filter(Boolean),
+          parameters:grows.map(x=>x.Parameter||""),
           results:grows.map(x=>x.ResultValue||""),
           standards:grows.map(x=>x.StandardValue||""),
-          exceeded:grows.some(x=>x.ExceededGroup)
+          exceeded:grows.some(x=>x.ExceededGroup||x.Parameter||x.ResultValue||x.StandardValue)
         }));
         physicalRows.push({
           role:"sampleSummary",
@@ -4795,7 +4811,7 @@ function magicCsvDxfResolveTables(parsed,mode="auto"){
           note:s.note,
           depth:s0.Depth||"",
           analyses:s0.Analyses||"",
-          exceededGroups:groupRows.map(g=>g.group).filter(Boolean).join(", "),
+          exceededGroups:groupRows.length ? groupRows.map(g=>g.group).filter(Boolean).join(", ") : (s0.ComplianceText||""),
           sampleSpan:1+groupRows.length,
           exceeded:groupRows.some(g=>g.exceeded)
         });
@@ -4811,7 +4827,7 @@ function magicCsvDxfEscapeHtml(s){
 }
 function magicCsvDxfTitleColor(){
   const v=document.getElementById("magicCsvDxfTitleFill").value;
-  return v==="groundwater" ? "#ccffff" : v==="white" ? "#ffffff" : "#ffecb3";
+  return v==="groundwater" ? "#7fffff" : v==="white" ? "#ffffff" : "#ffff7f";
 }
 function magicCsvDxfRenderPreview(models){
   const wrap=document.getElementById("magicCsvDxfPreview");
@@ -4850,186 +4866,26 @@ function magicCsvDxfRenderPreview(models){
     return "<div class=\"magic-dxf-card\"><div class=\"magic-dxf-title\" style=\"background:"+fill+"\">"+magicCsvDxfEscapeHtml(m.bh+(m.date?" ("+m.date+")":""))+"</div><table class=\"magic-dxf-table\">"+heads+"<tbody>"+body+"</tbody></table></div>";
   }).join("");
 }
-function magicCsvDxfPair(code,val){ return code+"\n"+val+"\n"; }
-function magicCsvDxfLine(layer,x1,y1,x2,y2){
-  return magicCsvDxfPair(0,"LINE")+
-    magicCsvDxfPair(8,layer)+
-    magicCsvDxfPair(10,x1)+magicCsvDxfPair(20,y1)+
-    magicCsvDxfPair(11,x2)+magicCsvDxfPair(21,y2);
+function downloadNativeDxf(models, name, options={}){
+  const dxf=TallyNativeDxf.build(models,options);
+  const blob=new Blob([dxf],{type:'application/dxf;charset=us-ascii'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
 }
-function magicCsvDxfText(layer,x,y,h,text){
-  const safe=String(text??"").replace(/[^\x20-\x7E]/g,"?");
-  return magicCsvDxfPair(0,"TEXT")+
-    magicCsvDxfPair(8,layer)+
-    magicCsvDxfPair(10,x)+magicCsvDxfPair(20,y)+
-    magicCsvDxfPair(40,h)+
-    magicCsvDxfPair(1,safe);
-}
-function magicCsvDxfTextLines(layer,xCenter,yCenter,h,width,text){
-  const lines=String(text??"").split("\\P");
-  const gap=h*1.55;
-  let y=yCenter + ((lines.length-1)*gap)/2;
-  let out="";
-  for(const raw of lines){
-    const safe=String(raw??"").replace(/[^\x20-\x7E]/g,"?");
-    out+=magicCsvDxfText(layer,xCenter-(Math.min(safe.length,40)*h*0.28),y,h,safe);
-    y-=gap;
-  }
-  return out;
-}
-function magicCsvDxfDetailedRowHeight(row){
-  if(row.role==="sampleSummary") return 12;
-  const p=[row.group,...(row.parameters||[])].filter(Boolean).length;
-  const r=(row.results||[]).length;
-  const s=(row.standards||[]).length;
-  return Math.max(12,4.5+4.2*Math.max(2,p,r,s));
-}
-function magicCsvDxfBuildDxf(models){
-  // AutoCAD R12 ASCII DXF. Emit all standard symbol tables, in AutoCAD order.
-  // In particular, omitting APPID / STYLE / DIMSTYLE makes LT report
-  // "Error in APPID Table" and discard the entire drawing.
-  const p=magicCsvDxfPair;
-  const record=(kind,attributes)=>
-    p(0,kind)+attributes.map(([code,value])=>p(code,value)).join("");
-  const table=(name,records)=>
-    p(0,"TABLE")+p(2,name)+p(70,records.length)+records.join("")+p(0,"ENDTAB");
-
-  let out=p(0,"SECTION")+p(2,"HEADER");
-  out+=p(9,"$ACADVER")+p(1,"AC1009");
-  out+=p(9,"$DWGCODEPAGE")+p(3,"ANSI_1252");
-  out+=p(9,"$CLAYER")+p(8,"0");
-  out+=p(9,"$TEXTSTYLE")+p(7,"Standard");
-  out+=p(0,"ENDSEC");
-
-  out+=p(0,"SECTION")+p(2,"TABLES");
-  out+=table("VPORT",[record("VPORT",[
-    [2,"*Active"],[70,0],
-    [10,0],[20,0],[11,1],[21,1],
-    [12,50],[22,-50],[13,0],[23,0],
-    [14,0.5],[24,0.5],[15,0.5],[25,0.5],
-    [16,0],[26,0],[36,1],[17,0],[27,0],[37,0],
-    [40,1000],[41,1.34],[42,50],[43,0],[44,0],[50,0],[51,0],
-    [71,0],[72,1000],[73,1],[74,3],[75,0],[76,0],[77,0],[78,0]
-  ])]);
-  out+=table("LTYPE",["ByBlock","ByLayer","CONTINUOUS"].map(name=>
-    record("LTYPE",[[2,name],[70,0],[3,"Solid line"],[72,65],[73,0],[40,0]])));
-  out+=table("LAYER",[
-    ["0",7],
-    ["MAGIC_TABLE_GRID",7],
-    ["MAGIC_TABLE_TEXT",7],
-    ["MAGIC_TABLE_EXCEEDED",1],
-    ["MAGIC_TABLE_TITLE",7]
-  ].map(([name,color])=>record("LAYER",[
-    [2,name],[70,0],[62,color],[6,"CONTINUOUS"]
-  ])));
-  out+=table("STYLE",[record("STYLE",[
-    [2,"Standard"],[70,0],[40,0],[41,1],[50,0],
-    [71,0],[42,2.5],[3,"txt"],[4,""]
-  ])]);
-  out+=table("VIEW",[]);
-  out+=table("UCS",[]);
-  out+=table("APPID",[record("APPID",[[2,"ACAD"],[70,0]])]);
-  // Complete AutoCAD R12 Standard DIMSTYLE record. The string codes
-  // 3-7 are mandatory even when blank; AutoCAD LT rejects an incomplete
-  // DIMSTYLE with "Omitted group 3" at the following ENDTAB.
-  out+=table("DIMSTYLE",[record("DIMSTYLE",[
-    [105,"2B"],[2,"Standard"],[70,0],
-    [3,""],[4,""],[5,""],[6,""],[7,""],
-    [40,1.0],[41,2.5],[42,0.625],[43,3.75],[44,1.25],
-    [45,0],[46,0],[47,0],[48,0],
-    [140,2.5],[141,2.5],[142,0],[143,0.03937007874],
-    [144,1],[145,0],[146,1],[147,0.625],
-    [71,0],[72,0],[73,0],[74,0],[75,0],[76,0],[77,1],[78,8],
-    [170,0],[171,3],[172,1],[173,0],[174,0],[175,0],
-    [176,0],[177,0],[178,0]
-  ])]);
-  out+=p(0,"ENDSEC");
-
-  // Standard R12 model/paper space block definitions.
-  out+=p(0,"SECTION")+p(2,"BLOCKS");
-  for(const name of ["$Model_Space","$Paper_Space"]){
-    out+=record("BLOCK",[
-      [8,"0"],[2,name],[70,0],[10,0],[20,0],[30,0],[3,name],[1,""]
-    ]);
-    out+=record("ENDBLK",[[8,"0"]]);
-  }
-  out+=p(0,"ENDSEC");
-
-  out+=p(0,"SECTION")+p(2,"ENTITIES");
-  let top=0;
-
-  for(const m of models){
-    const widths=m.mode==="summary"?[36,58,32]:[36,58,18,18];
-    const total=widths.reduce((a,b)=>a+b,0), titleH=8;
-    const xs=[0]; widths.forEach(w=>xs.push(xs[xs.length-1]+w));
-
-    // Title row.
-    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top,total,top);
-    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top-titleH,total,top-titleH);
-    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,top,0,top-titleH);
-    out+=magicCsvDxfLine("MAGIC_TABLE_GRID",total,top,total,top-titleH);
-    out+=magicCsvDxfTextLines("MAGIC_TABLE_TITLE",total/2,top-titleH/2,3,total-4,m.bh+(m.date?" ("+m.date+")":""));
-
-    let y=top-titleH;
-
-    if(m.mode==="summary"){
-      const rowH=12;
-      for(const r of m.rows){
-        const nextY=y-rowH;
-        out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,nextY,total,nextY);
-        for(const x of xs) out+=magicCsvDxfLine("MAGIC_TABLE_GRID",x,y,x,nextY);
-        const cy=(y+nextY)/2;
-        const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).join("\\P");
-        out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[0]+widths[0]/2,cy,2.5,widths[0]-4,sample);
-        out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,cy,2.4,widths[1]-4,r.analyses||"");
-        out+=magicCsvDxfTextLines(r.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+widths[2]/2,cy,2.4,widths[2]-4,r.result||"");
-        y=nextY;
-      }
-    }else{
-      for(let i=0;i<m.rows.length;){
-        const summary=m.rows[i];
-        if(summary.role!=="sampleSummary"){ i++; continue; }
-        const details=m.rows.slice(i+1,i+summary.sampleSpan);
-        const heights=[magicCsvDxfDetailedRowHeight(summary),...details.map(magicCsvDxfDetailedRowHeight)];
-        const sampleTop=y;
-        const sampleBottom=y-heights.reduce((a,b)=>a+b,0);
-
-        out+=magicCsvDxfLine("MAGIC_TABLE_GRID",0,y,total,y);
-
-        for(let j=0;j<heights.length;j++){
-          y-=heights[j];
-          out+=magicCsvDxfLine("MAGIC_TABLE_GRID",j===heights.length-1?0:xs[1],y,total,y);
-        }
-
-        for(const x of [0,xs[1],xs[2],xs[4]]) out+=magicCsvDxfLine("MAGIC_TABLE_GRID",x,sampleTop,x,sampleBottom);
-        out+=magicCsvDxfLine("MAGIC_TABLE_GRID",xs[3],sampleTop-heights[0],xs[3],sampleBottom);
-
-        const sampleText=[summary.sample,summary.note,summary.depth?"("+summary.depth+")":""].filter(Boolean).join("\\P");
-        out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[0]+widths[0]/2,(sampleTop+sampleBottom)/2,2.5,widths[0]-4,sampleText);
-
-        const summaryCy=sampleTop-heights[0]/2;
-        out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,summaryCy,2.35,widths[1]-4,summary.analyses||"");
-        out+=magicCsvDxfTextLines(summary.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+(widths[2]+widths[3])/2,summaryCy,2.35,widths[2]+widths[3]-4,summary.exceededGroups||"");
-
-        let detailTop=sampleTop-heights[0];
-        details.forEach((d,j)=>{
-          const h=heights[j+1], cy=detailTop-h/2;
-          out+=magicCsvDxfTextLines(d.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[1]+widths[1]/2,cy,2.3,widths[1]-4,[d.group,...(d.parameters||[])].filter(Boolean).join("\\P"));
-          out+=magicCsvDxfTextLines(d.exceeded?"MAGIC_TABLE_EXCEEDED":"MAGIC_TABLE_TEXT",xs[2]+widths[2]/2,cy,2.3,widths[2]-4,(d.results||[]).join("\\P"));
-          out+=magicCsvDxfTextLines("MAGIC_TABLE_TEXT",xs[3]+widths[3]/2,cy,2.3,widths[3]-4,(d.standards||[]).join("\\P"));
-          detailTop-=h;
-        });
-
-        y=sampleBottom;
-        i+=summary.sampleSpan;
-      }
-    }
-
-    top=y-10;
-  }
-
-  out+=magicCsvDxfPair(0,"ENDSEC")+magicCsvDxfPair(0,"EOF");
-  return out;
+function downloadReportDxf(button){
+  const status=document.getElementById('nativeDxfStatus');
+  button.disabled=true;
+  try{
+    const data=(window._csvExports||{})[button.dataset.dxfExport];
+    if(!data)throw Error('Results are unavailable. Read the report again.');
+    const models=magicCsvDxfResolveTables(magicCsvDxfRowsFromText(data.text),'detailed');
+    downloadNativeDxf(models,data.name.replace(/\.csv$/i,'.dxf'),{titleFill:button.dataset.dxfFill});
+    status.textContent=models.length+' editable AutoCAD table(s) downloaded. Includes the current analyses filter and borehole names.';
+  }catch(error){
+    status.textContent='DXF could not be exported: '+error.message;
+  }finally{button.disabled=false;}
 }
 function magicCsvDxfSetMessage(text,isError=false){
   const el=document.getElementById("magicCsvDxfMessage");
@@ -5069,16 +4925,15 @@ async function magicCsvDxfLoadFile(file){
   }
 }
 function magicCsvDxfDownload(){
-  if(!magicCsvDxfState.models.length) return;
-  const dxf=magicCsvDxfBuildDxf(magicCsvDxfState.models);
-  const blob=new Blob([dxf],{type:"application/dxf;charset=us-ascii"});
-  const a=document.createElement("a");
-  const stamp=new Date().toISOString().slice(0,10);
-  a.href=URL.createObjectURL(blob);
-  a.download="MAGIC_Contaminant_Tables_"+stamp+".dxf";
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },400);
-  magicCsvDxfSetMessage("DXF exported successfully.");
+  if(!magicCsvDxfState.models.length)return;
+  try{
+    downloadNativeDxf(magicCsvDxfState.models,'MAGIC_Contaminant_Tables_'+new Date().toISOString().slice(0,10)+'.dxf',{
+      titleFill:document.getElementById('magicCsvDxfTitleFill').value,
+      referenceLayout:document.getElementById('magicCsvDxfReferenceLayout').checked,
+      fullDate:document.getElementById('magicCsvDxfFullDate').checked
+    });
+    magicCsvDxfSetMessage('Editable AutoCAD tables downloaded as DXF.');
+  }catch(error){magicCsvDxfSetMessage(error.message,true);}
 }
 function magicCsvDxfClear(){
   magicCsvDxfState.fileName=""; magicCsvDxfState.parsed=null; magicCsvDxfState.models=[];
@@ -5108,5 +4963,5 @@ function magicCsvDxfClear(){
 </script>
 
 
-<script src="magic-native-table.js"></script>
+
 </body></html>
