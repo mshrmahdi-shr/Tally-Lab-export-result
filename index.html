@@ -278,6 +278,8 @@
   }
 
   /* ---- rendered report (light card, matches the firm's tally-table style) ---- */
+  .copy-btn.dxf-btn{background:var(--accent);color:#171717;border-color:var(--accent);font-weight:700;}
+  .copy-btn.dxf-btn:disabled{opacity:.5;cursor:wait;}
   #reportWrap{display:flex; flex-direction:column; gap:28px;}
   .report{
     background:linear-gradient(180deg, #ffffff 0%, #f6f7f9 100%);
@@ -291,7 +293,7 @@
   }
   .report:hover{box-shadow:0 8px 32px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);}
   .report .report-head{
-    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    display:flex; flex-direction:column; align-items:stretch; gap:16px;
     padding-bottom:14px; margin-bottom:16px;
     border-bottom:2px solid #e0e3e8;
   }
@@ -301,7 +303,7 @@
   }
   .report .meta{font-size:13px; margin:2px 0; color:#3a3a3a;}
   .report .meta b{color:#12253f;}
-  .report-actions{display:flex; gap:8px; flex-shrink:0;}
+  .report-actions{display:flex; flex-wrap:wrap; gap:8px; min-width:0;}
   table.tally{
     width:100%;
     border-collapse:separate;
@@ -542,6 +544,31 @@
   .copy-hint{
     font-size:11px; color:var(--muted); margin:8px 0 -4px; font-style:italic;
   }
+
+/* MAGIC CSV DXF FEATURE START */
+#magicCsvDxfPanel .magic-csv-dxf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+#magicCsvDxfPanel .magic-csv-dxf-drop{
+  border:2px dashed #3a3d43;border-radius:12px;padding:22px;text-align:center;cursor:pointer;
+  background:#17181c;transition:border-color .15s ease,background .15s ease;
+}
+#magicCsvDxfPanel .magic-csv-dxf-drop.dragover{border-color:var(--accent);background:rgba(201,138,58,.08);}
+#magicCsvDxfPanel .magic-csv-dxf-drop strong{display:block;color:var(--text);margin-bottom:4px;}
+#magicCsvDxfPanel .magic-csv-dxf-file{font-size:12px;color:var(--accent-soft);margin-top:8px;}
+#magicCsvDxfPanel .magic-csv-dxf-options{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:12px;margin-top:16px;}
+#magicCsvDxfPanel .magic-csv-dxf-preview{margin-top:18px;display:flex;flex-direction:column;gap:18px;}
+#magicCsvDxfPanel .magic-dxf-card{background:#fff;color:#172033;border:1px solid #d6d9df;border-radius:10px;padding:16px;overflow:auto;}
+#magicCsvDxfPanel .magic-dxf-title{font-weight:800;text-align:center;background:#f0d5a7;border:1px solid #c8b184;padding:8px;margin-bottom:0;}
+#magicCsvDxfPanel table.magic-dxf-table{width:100%;border-collapse:collapse;font-size:12px;}
+#magicCsvDxfPanel table.magic-dxf-table td,#magicCsvDxfPanel table.magic-dxf-table th{border:1px solid #cfd3da;padding:7px 8px;vertical-align:middle;}
+#magicCsvDxfPanel table.magic-dxf-table th{background:#eef1f5;color:#253248;text-align:center;}
+#magicCsvDxfPanel .magic-exceeded{color:#c42828;font-weight:800;}
+#magicCsvDxfPanel .magic-csv-dxf-error{color:#e2685a;font-size:12px;margin-top:10px;}
+#magicCsvDxfPanel .magic-csv-dxf-ok{color:#8fd2a2;font-size:12px;margin-top:10px;}
+@media(max-width:760px){
+  #magicCsvDxfPanel .magic-csv-dxf-grid,#magicCsvDxfPanel .magic-csv-dxf-options{grid-template-columns:1fr;}
+}
+/* MAGIC CSV DXF FEATURE END */
+
 </style>
 </head>
 <body>
@@ -684,10 +711,64 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
   <div class="panel">
     <h2>📊 &nbsp;Step 2 — Output</h2>
+    <p id="nativeDxfStatus" class="hint-note" role="status" aria-live="polite"></p>
     <div id="reportWrap">
       <p style="color:var(--muted); font-size:13px;">Upload one or more Certificate of Analysis files (PDF or TXT) to begin. If sampling dates in a file only give a date range (not one date per sample), also upload the Sampling Date / Screen Interval reference file — otherwise dates are left blank rather than guessed.</p>
     </div>
   </div>
+
+
+<!-- MAGIC CSV DXF FEATURE START -->
+<div class="panel" id="magicCsvDxfPanel">
+  <h2>Optional: import a MAGIC CSV</h2>
+  <p class="hint-note">Already have a MAGIC CSV/TSV? Load it here for editable AutoCAD tables. For results read in Tally, use Download AutoCAD DXF in the report above.</p>
+
+  <div id="magicCsvDxfDrop" class="magic-csv-dxf-drop" tabindex="0">
+    <strong>Drop a MAGIC CSV/TSV file here</strong>
+    <span class="hint-note">or click to browse</span>
+    <div id="magicCsvDxfFileName" class="magic-csv-dxf-file"></div>
+    <input id="magicCsvDxfInput" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" hidden>
+  </div>
+
+  <div class="magic-csv-dxf-options">
+    <div class="field">
+      <label for="magicCsvDxfMode">Output mode</label>
+      <select id="magicCsvDxfMode">
+        <option value="auto">Auto Detect</option>
+        <option value="summary">Summary</option>
+        <option value="detailed">Detailed</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="magicCsvDxfTitleFill">Title fill</label>
+      <select id="magicCsvDxfTitleFill">
+        <option value="soil">Soil</option>
+        <option value="groundwater">Groundwater</option>
+        <option value="white">White</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Layout</label>
+      <div style="padding-top:8px;font-size:12px;color:var(--muted);">
+        <label style="display:flex;align-items:center;gap:7px;"><input id="magicCsvDxfReferenceLayout" type="checkbox" checked> Reference layout</label>
+        <label style="display:flex;align-items:center;gap:7px;margin-top:6px;"><input id="magicCsvDxfFullDate" type="checkbox" checked> Full date</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="magicCsvDxfExportBtn" type="button" disabled>Download AutoCAD DXF</button>
+    <button id="magicCsvDxfClearBtn" class="ghost" type="button">Clear</button>
+    <span id="magicCsvDxfStatus"></span>
+  </div>
+
+  <p class="hint-note">Downloads editable AutoCAD TABLE objects in a .dxf file. Open the file directly in AutoCAD.</p>
+  <div id="magicCsvDxfMessage"></div>
+  <div id="magicCsvDxfPreview" class="magic-csv-dxf-preview">
+    <p class="hint-note">Load a valid MAGIC CSV or TSV file to preview CAD tables.</p>
+  </div>
+</div>
+<!-- MAGIC CSV DXF FEATURE END -->
 
 </main>
 
@@ -715,6 +796,8 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
+<script src="native-dxf-base.js"></script>
+<script src="magic-native-table.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
@@ -1566,6 +1649,7 @@ function processNow(){
     if(gwPanel) gwPanel.classList.remove('on');
     window._copyBlocks = {};
     window._csvExports = {};
+    document.getElementById('nativeDxfStatus').textContent = '';
     let debugCombined = '';
 
     if(coaFiles.length || agatFiles.length){
@@ -2361,6 +2445,7 @@ function buildSitePlanReportEl(title, samplesMap, unit, catSet){
       <div class="report-actions">
         <button class="copy-btn" data-copy-block="${fullTsvKey}">📋 Copy full table</button>
         <button class="copy-btn" data-csv-export="sp_all_summary_${title.replace(/\W/g,'')}" title="Export every borehole in this report as one Summary CSV for AutoCAD">⬇ ALL SUMMARY CSV</button>
+        <button class="copy-btn dxf-btn" data-dxf-export="sp_all_detailed_${title.replace(/\W/g,'')}" data-dxf-fill="${unit==='ppm'?'soil':'groundwater'}" title="Download these displayed results as editable AutoCAD tables">⬇ Download AutoCAD DXF</button>
         <button class="copy-btn" data-csv-export="sp_all_detailed_${title.replace(/\W/g,'')}" title="Export every borehole in this report as one Detailed CSV for AutoCAD">⬇ ALL DETAILED CSV</button>
       </div>
     </div>
@@ -2390,6 +2475,7 @@ function buildSitePlanReportEl(title, samplesMap, unit, catSet){
         <span class="bh-name">${esc(g.bh)}</span>${g.members.length>1?`<span class="bh-rounds-count">${g.members.length} entries</span>`:''}
         <button class="copy-btn" data-copy-block="${blockId}" title="Copy this borehole's full record as tab-separated text">📋 Copy block</button>
         <button class="copy-btn" data-csv-export="sp_sum_${blockId}" title="Export this borehole as a Summary CSV for AutoCAD">⬇ SUMMARY CSV</button>
+        <button class="copy-btn dxf-btn" data-dxf-export="sp_det_${blockId}" data-dxf-fill="${unit==='ppm'?'soil':'groundwater'}" title="Download these displayed results as editable AutoCAD tables">⬇ Download AutoCAD DXF</button>
         <button class="copy-btn" data-csv-export="sp_det_${blockId}" title="Export this borehole as a Detailed CSV for AutoCAD">⬇ DETAILED CSV</button>
       </td></tr>`;
 
@@ -3373,6 +3459,11 @@ function ensureCopyHandler(){
       }
       return;
     }
+    if(btn && btn.dataset.dxfExport){
+      e.stopPropagation();
+      downloadReportDxf(btn);
+      return;
+    }
     if(btn && btn.dataset.csvExport){
       e.stopPropagation();
       const csv = (window._csvExports||{})[btn.dataset.csvExport];
@@ -3917,6 +4008,7 @@ function renderSampleRowsForLabel(id, s, label, catSet){
 // never included e.g. Table 9 must never be shown as if it passed Table 9.
 function buildBoreholeReportEl(boreholes, samples, ctx, label){
   const isSoil = ctx.matrix === 'SOIL';
+  const exportScope = ctx.matrix + '_' + safeFileName(label);
   const unit = isSoil ? 'ppm' : 'µg/L';
   const textureNote = isSoil ? (ctx.texturePref==='bracket' ? ', Medium/Fine-Textured Soil' : ', Coarse-Textured Soil') : '';
   const colHeader = `${label} SCS${textureNote}`.toUpperCase() + ` (${unit})`;
@@ -3940,7 +4032,7 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
   const theme = reportThemeFor(label, ctx);
   el.className = 'report report--theme-' + theme;
 
-  const fullTsvKey = 'full_'+label.replace(/\W/g,'');
+  const fullTsvKey = 'full_'+exportScope;
   let html = `<div class="report-head">
       <div>
         <h2>${title}<span class="report-tablebadge">${esc(label)}</span></h2>
@@ -3949,8 +4041,9 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
       </div>
       <div class="report-actions">
         <button class="copy-btn" data-copy-block="${fullTsvKey}">📋 Copy full table</button>
-        <button class="copy-btn" data-csv-export="all_summary_${label.replace(/\W/g,'')}" title="Export every borehole in this report as one Summary CSV for AutoCAD">⬇ ALL SUMMARY CSV</button>
-        <button class="copy-btn" data-csv-export="all_detailed_${label.replace(/\W/g,'')}" title="Export every borehole in this report as one Detailed CSV for AutoCAD">⬇ ALL DETAILED CSV</button>
+        <button class="copy-btn" data-csv-export="all_summary_${exportScope}" title="Export every borehole in this report as one Summary CSV for AutoCAD">⬇ ALL SUMMARY CSV</button>
+        <button class="copy-btn dxf-btn" data-dxf-export="all_detailed_${exportScope}" data-dxf-fill="${isSoil?'soil':'groundwater'}" title="Download these displayed results as editable AutoCAD tables">⬇ Download AutoCAD DXF</button>
+        <button class="copy-btn" data-csv-export="all_detailed_${exportScope}" title="Export every borehole in this report as one Detailed CSV for AutoCAD">⬇ ALL DETAILED CSV</button>
       </div>
     </div>
     <p class="copy-hint">Click any cell to copy it. Use “Copy block” to grab a borehole's full record (every sampling round) as tab-separated text.</p>
@@ -3977,7 +4070,7 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
 
   filtered.forEach((bh, gi)=>{
     const roundCount = bh.filteredRounds.length;
-    const blockId = 'blk_'+label.replace(/\W/g,'')+'_'+gi;
+    const blockId = 'blk_'+exportScope+'_'+gi;
     const blockTsvRows = [[bh.displayName, '', '', '']];
     const blockClipRows = [`<tr><td colspan="4" style="${CLIP_TD}background:${clipTheme.head};color:${clipTheme.headText};font-weight:bold;text-align:center;">${esc(bh.displayName)}</td></tr>`];
     const summaryLines = [SUMMARY_HEADER];
@@ -4000,6 +4093,7 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
         <button class="copy-btn rename-btn" data-rename-bh="${esc(bh.name)}" data-rename-current="${esc(bh.displayName)}" title="Rename this borehole — matching names elsewhere will be grouped under the new name">✏️ Rename</button>
         <button class="copy-btn" data-copy-block="${blockId}" title="Copy this borehole's full record as tab-separated text">📋 Copy block</button>
         <button class="copy-btn" data-csv-export="sum_${blockId}" title="Export this borehole as a Summary CSV for AutoCAD">⬇ SUMMARY CSV</button>
+        <button class="copy-btn dxf-btn" data-dxf-export="det_${blockId}" data-dxf-fill="${isSoil?'soil':'groundwater'}" title="Download these displayed results as editable AutoCAD tables">⬇ Download AutoCAD DXF</button>
         <button class="copy-btn" data-csv-export="det_${blockId}" title="Export this borehole as a Detailed CSV for AutoCAD">⬇ DETAILED CSV</button>
       </td></tr>`;
 
@@ -4046,11 +4140,11 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
     fullClipRows.push(...blockClipRows);
     (window._copyBlocks = window._copyBlocks || {})[blockId] = {tsv: blockTsv, html: clipWrap([clipColHeader].concat(blockClipRows).join(''))};
     (window._csvExports = window._csvExports || {})['sum_'+blockId] = {
-      name: safeFileName(bh.displayName + '_AutoCAD_Summary_' + label) + '.csv',
+      name: safeFileName(bh.displayName + '_' + ctx.matrix + '_AutoCAD_Summary_' + label) + '.csv',
       text: summaryLines.join('\r\n')
     };
     (window._csvExports = window._csvExports || {})['det_'+blockId] = {
-      name: safeFileName(bh.displayName + '_AutoCAD_Detailed_' + label) + '.csv',
+      name: safeFileName(bh.displayName + '_' + ctx.matrix + '_AutoCAD_Detailed_' + label) + '.csv',
       text: detailedLines.join('\r\n')
     };
   });
@@ -4063,12 +4157,12 @@ function buildBoreholeReportEl(boreholes, samples, ctx, label){
 
   const fullReportTsv = reportRows.map(r=>r.join('\t')).join('\n');
   (window._copyBlocks = window._copyBlocks || {})[fullTsvKey] = {tsv: fullReportTsv, html: clipWrap(fullClipRows.join(''))};
-  (window._csvExports = window._csvExports || {})['all_summary_'+label.replace(/\W/g,'')] = {
-    name: safeFileName('Project_AutoCAD_Summary_' + label) + '.csv',
+  (window._csvExports = window._csvExports || {})['all_summary_'+exportScope] = {
+    name: safeFileName('Project_' + ctx.matrix + '_AutoCAD_Summary_' + label) + '.csv',
     text: allSummaryLines.join('\r\n')
   };
-  (window._csvExports = window._csvExports || {})['all_detailed_'+label.replace(/\W/g,'')] = {
-    name: safeFileName('Project_AutoCAD_Detailed_' + label) + '.csv',
+  (window._csvExports = window._csvExports || {})['all_detailed_'+exportScope] = {
+    name: safeFileName('Project_' + ctx.matrix + '_AutoCAD_Detailed_' + label) + '.csv',
     text: allDetailedLines.join('\r\n')
   };
 
@@ -4606,7 +4700,268 @@ if(typeof indexedDB !== 'undefined'){
     if(current) renderProjectBar(current.name);
   }).catch(()=>{});
 }
+
+/* MAGIC CSV DXF FEATURE START */
+const MAGIC_CSV_DXF_SUMMARY_HEADERS = ["BH","Date","SampleID","Depth","Analyses","ExceededGroups","ComplianceText"];
+const MAGIC_CSV_DXF_DETAIL_HEADERS = ["BH","Date","SampleID","Depth","Analyses","ExceededGroup","Parameter","ResultValue","StandardValue","ComplianceText"];
+const magicCsvDxfState = { fileName:"", parsed:null, models:[] };
+
+function magicCsvDxfDetectDelimiter(text){
+  const first=(text||"").replace(/^\uFEFF/,"").split(/\r?\n/)[0]||"";
+  return first.includes("\t") ? "\t" : ",";
+}
+function magicCsvDxfParseDelimited(text, delimiter){
+  text=(text||"").replace(/^\uFEFF/,"");
+  const rows=[]; let row=[], field="", quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(quoted && text[i+1]==='"'){ field+='"'; i++; }
+      else quoted=!quoted;
+    }else if(ch===delimiter && !quoted){ row.push(field); field=""; }
+    else if((ch==="\n"||ch==="\r") && !quoted){
+      if(ch==="\r" && text[i+1]==="\n") i++;
+      row.push(field); field="";
+      if(row.some(v=>v!=="")) rows.push(row);
+      row=[];
+    }else field+=ch;
+  }
+  if(quoted) throw new Error("Malformed CSV/TSV: an opening quote was not closed.");
+  if(field!=="" || row.length){ row.push(field); if(row.some(v=>v!=="")) rows.push(row); }
+  return rows;
+}
+function magicCsvDxfDetectSchema(headers){
+  const h=headers.map(x=>String(x).trim());
+  const has=req=>req.every(x=>h.includes(x));
+  if(has(MAGIC_CSV_DXF_DETAIL_HEADERS)) return "detailed";
+  if(has(MAGIC_CSV_DXF_SUMMARY_HEADERS)) return "summary";
+  return null;
+}
+function magicCsvDxfRowsFromText(text){
+  if(!String(text||"").trim()) throw new Error("The CSV/TSV file is empty.");
+  const delimiter=magicCsvDxfDetectDelimiter(text);
+  const matrix=magicCsvDxfParseDelimited(text,delimiter);
+  if(matrix.length<2) throw new Error("The CSV/TSV file does not contain data rows.");
+  const headers=matrix[0].map(x=>String(x||"").trim());
+  const schema=magicCsvDxfDetectSchema(headers);
+  if(!schema) throw new Error("Unsupported CSV/TSV headers. Use a MAGIC Summary or Detailed export.");
+  const rows=matrix.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,String(r[i]??"").trim()])));
+  if(!rows.some(r=>r.BH)) throw new Error("No borehole rows were found.");
+  return {schema,headers,rows};
+}
+function magicCsvDxfSplitSample(sample){
+  const m=String(sample||"").match(/^(.*?)\s*(\(Field Duplicate\))\s*$/i);
+  return m ? {base:m[1].trim(),note:m[2]} : {base:String(sample||"").trim(),note:""};
+}
+function magicCsvDxfResolveTables(parsed,mode="auto"){
+  const actual=mode==="auto"?parsed.schema:mode;
+  if(actual==="detailed" && parsed.schema!=="detailed") throw new Error("Detailed mode requires the Detailed CSV schema.");
+  const groups=new Map();
+  for(const r of parsed.rows){
+    const k=JSON.stringify([r.BH||"",r.Date||""]);
+    if(!groups.has(k)) groups.set(k,[]);
+    groups.get(k).push(r);
+  }
+  const out=[];
+  for(const rows of groups.values()){
+    const first=rows[0];
+    if(actual==="summary"){
+      const sr=parsed.schema==="summary" ? rows : (()=>{
+        const bySample=new Map();
+        for(const r of rows){
+          const sk=JSON.stringify([r.SampleID,r.Depth,r.Analyses]);
+          if(!bySample.has(sk)) bySample.set(sk,{...r,ExceededGroups:[],ComplianceText:r.ComplianceText||""});
+          const x=bySample.get(sk);
+          if(r.ExceededGroup && !x.ExceededGroups.includes(r.ExceededGroup)) x.ExceededGroups.push(r.ExceededGroup);
+        }
+        return [...bySample.values()].map(x=>({...x,ExceededGroups:x.ExceededGroups.join(", ")}));
+      })();
+      out.push({bh:first.BH,date:first.Date,mode:"summary",rows:sr.map(r=>{
+        const s=magicCsvDxfSplitSample(r.SampleID);
+        return {role:"summary",sample:s.base,note:s.note,depth:r.Depth||"",analyses:r.Analyses||"",result:r.ExceededGroups||r.ComplianceText||"",exceeded:!!r.ExceededGroups};
+      })});
+    }else{
+      const bySample=new Map();
+      for(const r of rows){
+        const sk=JSON.stringify([r.SampleID,r.Depth,r.Analyses]);
+        if(!bySample.has(sk)) bySample.set(sk,[]);
+        bySample.get(sk).push(r);
+      }
+      const physicalRows=[];
+      for(const srows of bySample.values()){
+        const s0=srows[0], s=magicCsvDxfSplitSample(s0.SampleID);
+        const byGroup=new Map();
+        for(const r of srows){
+          if(!r.ExceededGroup && !r.Parameter && !r.ResultValue && !r.StandardValue)continue;
+          const g=r.ExceededGroup||r.Analyses||"";
+          if(!byGroup.has(g)) byGroup.set(g,[]);
+          byGroup.get(g).push(r);
+        }
+        const groupRows=[...byGroup.entries()].map(([g,grows])=>({
+          role:"detail",
+          group:g,
+          parameters:grows.map(x=>x.Parameter||""),
+          results:grows.map(x=>x.ResultValue||""),
+          standards:grows.map(x=>x.StandardValue||""),
+          exceeded:grows.some(x=>x.ExceededGroup||x.Parameter||x.ResultValue||x.StandardValue)
+        }));
+        physicalRows.push({
+          role:"sampleSummary",
+          sample:s.base,
+          note:s.note,
+          depth:s0.Depth||"",
+          analyses:s0.Analyses||"",
+          exceededGroups:groupRows.length ? groupRows.map(g=>g.group).filter(Boolean).join(", ") : (s0.ComplianceText||""),
+          sampleSpan:1+groupRows.length,
+          exceeded:groupRows.some(g=>g.exceeded)
+        });
+        physicalRows.push(...groupRows);
+      }
+      out.push({bh:first.BH,date:first.Date,mode:"detailed",rows:physicalRows});
+    }
+  }
+  return out;
+}
+function magicCsvDxfEscapeHtml(s){
+  return String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+function magicCsvDxfTitleColor(){
+  const v=document.getElementById("magicCsvDxfTitleFill").value;
+  return v==="groundwater" ? "#7fffff" : v==="white" ? "#ffffff" : "#ffff7f";
+}
+function magicCsvDxfRenderPreview(models){
+  const wrap=document.getElementById("magicCsvDxfPreview");
+  const fill=magicCsvDxfTitleColor();
+  wrap.innerHTML=models.map(m=>{
+    const heads=m.mode==="summary"
+      ? "<tr><th>Sample / Depth</th><th>Analyses</th><th>Exceeded / Compliance</th></tr>"
+      : "<tr><th>Sample / Depth</th><th>Analyses / Group / Parameter</th><th>Result</th><th>Standard</th></tr>";
+    let body="";
+    if(m.mode==="summary"){
+      body=m.rows.map(r=>{
+        const sample=[r.sample,r.note,r.depth?"("+r.depth+")":""].filter(Boolean).map(magicCsvDxfEscapeHtml).join("<br>");
+        return "<tr><td>"+sample+"</td><td>"+magicCsvDxfEscapeHtml(r.analyses)+"</td><td class=\""+(r.exceeded?"magic-exceeded":"")+"\">"+magicCsvDxfEscapeHtml(r.result)+"</td></tr>";
+      }).join("");
+    }else{
+      for(let i=0;i<m.rows.length;){
+        const summary=m.rows[i];
+        if(summary.role!=="sampleSummary"){ i++; continue; }
+        const details=m.rows.slice(i+1,i+summary.sampleSpan);
+        const sample=[summary.sample,summary.note,summary.depth?"("+summary.depth+")":""].filter(Boolean).map(magicCsvDxfEscapeHtml).join("<br>");
+        body += "<tr>"+
+          "<td rowspan=\""+summary.sampleSpan+"\" style=\"text-align:center;font-weight:700;\">"+sample+"</td>"+
+          "<td>"+magicCsvDxfEscapeHtml(summary.analyses)+"</td>"+
+          "<td colspan=\"2\" class=\""+(summary.exceeded?"magic-exceeded":"")+"\" style=\"text-align:center;\">"+magicCsvDxfEscapeHtml(summary.exceededGroups)+"</td>"+
+          "</tr>";
+        for(const d of details){
+          body += "<tr>"+
+            "<td class=\"magic-exceeded\" style=\"text-align:center;\">"+magicCsvDxfEscapeHtml([d.group,...d.parameters].filter(Boolean).join(" / "))+"</td>"+
+            "<td class=\"magic-exceeded\" style=\"text-align:center;\">"+magicCsvDxfEscapeHtml((d.results||[]).join(" / "))+"</td>"+
+            "<td style=\"text-align:center;\">"+magicCsvDxfEscapeHtml((d.standards||[]).join(" / "))+"</td>"+
+            "</tr>";
+        }
+        i+=summary.sampleSpan;
+      }
+    }
+    return "<div class=\"magic-dxf-card\"><div class=\"magic-dxf-title\" style=\"background:"+fill+"\">"+magicCsvDxfEscapeHtml(m.bh+(m.date?" ("+m.date+")":""))+"</div><table class=\"magic-dxf-table\">"+heads+"<tbody>"+body+"</tbody></table></div>";
+  }).join("");
+}
+function downloadNativeDxf(models, name, options={}){
+  const dxf=TallyNativeDxf.build(models,options);
+  const blob=new Blob([dxf],{type:'application/dxf;charset=us-ascii'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+}
+function downloadReportDxf(button){
+  const status=document.getElementById('nativeDxfStatus');
+  button.disabled=true;
+  try{
+    const data=(window._csvExports||{})[button.dataset.dxfExport];
+    if(!data)throw Error('Results are unavailable. Read the report again.');
+    const models=magicCsvDxfResolveTables(magicCsvDxfRowsFromText(data.text),'detailed');
+    downloadNativeDxf(models,data.name.replace(/\.csv$/i,'.dxf'),{titleFill:button.dataset.dxfFill});
+    status.textContent=models.length+' editable AutoCAD table(s) downloaded. Includes the current analyses filter and borehole names.';
+  }catch(error){
+    status.textContent='DXF could not be exported: '+error.message;
+  }finally{button.disabled=false;}
+}
+function magicCsvDxfSetMessage(text,isError=false){
+  const el=document.getElementById("magicCsvDxfMessage");
+  el.className=isError?"magic-csv-dxf-error":"magic-csv-dxf-ok";
+  el.textContent=text||"";
+}
+function magicCsvDxfRefresh(){
+  const btn=document.getElementById("magicCsvDxfExportBtn");
+  if(!magicCsvDxfState.parsed){ btn.disabled=true; return; }
+  try{
+    const mode=document.getElementById("magicCsvDxfMode").value;
+    magicCsvDxfState.models=magicCsvDxfResolveTables(magicCsvDxfState.parsed,mode);
+    if(!magicCsvDxfState.models.length) throw new Error("No resolved borehole tables were produced.");
+    magicCsvDxfRenderPreview(magicCsvDxfState.models);
+    btn.disabled=false;
+    magicCsvDxfSetMessage(magicCsvDxfState.models.length+" table(s) ready for DXF export.");
+  }catch(err){
+    magicCsvDxfState.models=[];
+    btn.disabled=true;
+    document.getElementById("magicCsvDxfPreview").innerHTML="<p class=\"hint-note\">Fix the validation issue to preview tables.</p>";
+    magicCsvDxfSetMessage(err.message,true);
+  }
+}
+async function magicCsvDxfLoadFile(file){
+  if(!file) return;
+  document.getElementById("magicCsvDxfFileName").textContent=file.name;
+  try{
+    const text=await file.text();
+    magicCsvDxfState.fileName=file.name;
+    magicCsvDxfState.parsed=magicCsvDxfRowsFromText(text);
+    magicCsvDxfRefresh();
+  }catch(err){
+    magicCsvDxfState.parsed=null; magicCsvDxfState.models=[];
+    document.getElementById("magicCsvDxfExportBtn").disabled=true;
+    document.getElementById("magicCsvDxfPreview").innerHTML="<p class=\"hint-note\">No valid MAGIC table data loaded.</p>";
+    magicCsvDxfSetMessage(err.message,true);
+  }
+}
+function magicCsvDxfDownload(){
+  if(!magicCsvDxfState.models.length)return;
+  try{
+    downloadNativeDxf(magicCsvDxfState.models,'MAGIC_Contaminant_Tables_'+new Date().toISOString().slice(0,10)+'.dxf',{
+      titleFill:document.getElementById('magicCsvDxfTitleFill').value,
+      referenceLayout:document.getElementById('magicCsvDxfReferenceLayout').checked,
+      fullDate:document.getElementById('magicCsvDxfFullDate').checked
+    });
+    magicCsvDxfSetMessage('Editable AutoCAD tables downloaded as DXF.');
+  }catch(error){magicCsvDxfSetMessage(error.message,true);}
+}
+function magicCsvDxfClear(){
+  magicCsvDxfState.fileName=""; magicCsvDxfState.parsed=null; magicCsvDxfState.models=[];
+  document.getElementById("magicCsvDxfInput").value="";
+  document.getElementById("magicCsvDxfFileName").textContent="";
+  document.getElementById("magicCsvDxfPreview").innerHTML="<p class=\"hint-note\">Load a valid MAGIC CSV or TSV file to preview CAD tables.</p>";
+  document.getElementById("magicCsvDxfExportBtn").disabled=true;
+  magicCsvDxfSetMessage("");
+}
+(function magicCsvDxfInit(){
+  const drop=document.getElementById("magicCsvDxfDrop");
+  const input=document.getElementById("magicCsvDxfInput");
+  if(!drop||!input) return;
+  drop.addEventListener("click",()=>input.click());
+  drop.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); input.click(); }});
+  drop.addEventListener("dragover",e=>{ e.preventDefault(); drop.classList.add("dragover"); });
+  drop.addEventListener("dragleave",()=>drop.classList.remove("dragover"));
+  drop.addEventListener("drop",e=>{ e.preventDefault(); drop.classList.remove("dragover"); magicCsvDxfLoadFile(e.dataTransfer.files[0]); });
+  input.addEventListener("change",()=>magicCsvDxfLoadFile(input.files[0]));
+  document.getElementById("magicCsvDxfMode").addEventListener("change",magicCsvDxfRefresh);
+  document.getElementById("magicCsvDxfTitleFill").addEventListener("change",()=>{ if(magicCsvDxfState.models.length) magicCsvDxfRenderPreview(magicCsvDxfState.models); });
+  document.getElementById("magicCsvDxfExportBtn").addEventListener("click",magicCsvDxfDownload);
+  document.getElementById("magicCsvDxfClearBtn").addEventListener("click",magicCsvDxfClear);
+})();
+/* MAGIC CSV DXF FEATURE END */
+
 </script>
+
 
 
 </body></html>
