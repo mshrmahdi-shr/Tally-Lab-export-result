@@ -4850,7 +4850,12 @@ function magicCsvDxfRenderPreview(models){
 }
 function magicCsvDxfPair(code,val){ return code+"\n"+val+"\n"; }
 function magicCsvDxfLine(layer,x1,y1,x2,y2){
-  return magicCsvDxfPair(0,"LINE")+magicCsvDxfPair(8,layer)+magicCsvDxfPair(10,x1)+magicCsvDxfPair(20,y1)+magicCsvDxfPair(11,x2)+magicCsvDxfPair(21,y2);
+  return magicCsvDxfPair(0,"LINE")+
+    magicCsvDxfPair(100,"AcDbEntity")+
+    magicCsvDxfPair(8,layer)+
+    magicCsvDxfPair(100,"AcDbLine")+
+    magicCsvDxfPair(10,x1)+magicCsvDxfPair(20,y1)+magicCsvDxfPair(30,0)+
+    magicCsvDxfPair(11,x2)+magicCsvDxfPair(21,y2)+magicCsvDxfPair(31,0);
 }
 function magicCsvDxfText(layer,x,y,h,text){
   const safe=String(text??"").replace(/[^\x20-\x7E]/g,"?");
@@ -4859,7 +4864,9 @@ function magicCsvDxfText(layer,x,y,h,text){
 function magicCsvDxfMText(layer,x,y,h,width,text){
   const safe=String(text??"").replace(/[^\x20-\x7E]/g,"?");
   return magicCsvDxfPair(0,"MTEXT")+
+    magicCsvDxfPair(100,"AcDbEntity")+
     magicCsvDxfPair(8,layer)+
+    magicCsvDxfPair(100,"AcDbMText")+
     magicCsvDxfPair(10,x)+magicCsvDxfPair(20,y)+magicCsvDxfPair(30,0)+
     magicCsvDxfPair(40,h)+magicCsvDxfPair(41,width)+magicCsvDxfPair(71,5)+
     magicCsvDxfPair(1,safe);
@@ -4876,10 +4883,17 @@ function magicCsvDxfDetailedRowHeight(row){
   return Math.max(12,3.5+4*Math.max(2,p,r,s));
 }
 function magicCsvDxfBuildDxf(models){
-  let out=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"HEADER")+magicCsvDxfPair(0,"ENDSEC");
+  // Standards-compliant AutoCAD 2000 ASCII DXF.
+  let out=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"HEADER");
+  out+=magicCsvDxfPair(9,"$ACADVER")+magicCsvDxfPair(1,"AC1015");
+  out+=magicCsvDxfPair(9,"$INSUNITS")+magicCsvDxfPair(70,4);
+  out+=magicCsvDxfPair(0,"ENDSEC");
   out+=magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"TABLES")+magicCsvDxfPair(0,"TABLE")+magicCsvDxfPair(2,"LAYER")+magicCsvDxfPair(70,4);
   for(const l of [["MAGIC_TABLE_GRID",7],["MAGIC_TABLE_TEXT",7],["MAGIC_TABLE_EXCEEDED",1],["MAGIC_TABLE_TITLE",7]]){
-    out+=magicCsvDxfPair(0,"LAYER")+magicCsvDxfPair(2,l[0])+magicCsvDxfPair(70,0)+magicCsvDxfPair(62,l[1])+magicCsvDxfPair(6,"CONTINUOUS");
+    out+=magicCsvDxfPair(0,"LAYER")+
+      magicCsvDxfPair(100,"AcDbSymbolTableRecord")+
+      magicCsvDxfPair(100,"AcDbLayerTableRecord")+
+      magicCsvDxfPair(2,l[0])+magicCsvDxfPair(70,0)+magicCsvDxfPair(62,l[1])+magicCsvDxfPair(6,"CONTINUOUS");
   }
   out+=magicCsvDxfPair(0,"ENDTAB")+magicCsvDxfPair(0,"ENDSEC")+magicCsvDxfPair(0,"SECTION")+magicCsvDxfPair(2,"ENTITIES");
   let top=0;
