@@ -793,7 +793,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.5 · GWL DOCX screen depths</span>
+  <span class="ver">v26.6 · mSPLP Leachate support</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1061,7 +1061,9 @@ function themeFor(label){
 function reportThemeFor(label, ctx){
   const picked = (ctx && ctx.tableColors && ctx.tableColors[label]) || state.tableColors[label];
   if(picked) return picked;
-  return (ctx && ctx.matrix === 'GW') ? 'blue' : defaultThemeFor(label);
+  if(ctx && ctx.matrix === 'GW') return 'blue';
+  if(ctx && ctx.matrix === 'LEACHATE') return 'teal';
+  return defaultThemeFor(label);
 }
 
 function detectedTableLabels(){
@@ -4016,11 +4018,16 @@ function renderSampleRowsForLabel(id, s, label, catSet){
 // never included e.g. Table 9 must never be shown as if it passed Table 9.
 function buildBoreholeReportEl(boreholes, samples, ctx, label){
   const isSoil = ctx.matrix === 'SOIL';
+  const isLeachate = ctx.matrix === 'LEACHATE';
   const exportScope = ctx.matrix + '_' + safeFileName(label);
   const unit = isSoil ? 'ppm' : 'µg/L';
   const textureNote = isSoil ? (ctx.texturePref==='bracket' ? ', Medium/Fine-Textured Soil' : ', Coarse-Textured Soil') : '';
-  const colHeader = `${label} SCS${textureNote}`.toUpperCase() + ` (${unit})`;
-  const title = (isSoil ? 'Soil' : 'Groundwater') + ' Sample Tally Table — COPCs / COCs in ' + (isSoil?'Soil':'Groundwater') + ' Before Remediation';
+  const colHeader = isLeachate
+    ? (label + ' LEACHATE QUALITY CRITERIA').toUpperCase() + ' (' + unit + ')'
+    : (label + ' SCS' + textureNote).toUpperCase() + ' (' + unit + ')';
+  const title = isLeachate
+    ? 'Leachate / mSPLP Sample Tally Table — Leachate Screening'
+    : (isSoil ? 'Soil' : 'Groundwater') + ' Sample Tally Table — COPCs / COCs in ' + (isSoil?'Soil':'Groundwater') + ' Before Remediation';
 
   const catSet = ctx.visibleCats || null;
   const sampleVisible = id => samples[id]._tableLabels.includes(label)
