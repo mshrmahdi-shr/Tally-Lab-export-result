@@ -829,7 +829,7 @@ const BH_PREFIX_RE = /^(BH\s?\d+[A-Za-z]?|TP\s?\d+[A-Za-z]?|MW\s*\d+(?:-\d+)?[A-
 const BH_PREFIX_ANYWHERE_RE = /\b(BH\s?\d+[A-Za-z]?|TP\s?\d+[A-Za-z]?|MW\s*\d+(?:-\d+)?[A-Za-z]?|VP[-\s]?\d+[A-Za-z]?|EMW\s?\d+|SS\s?\d+|GS[-\s]?\d+|SP\s?\d+)\b/i;
 // Header-noise tokens that PDF extraction merges into ID / borehole rows on compact pages:
 // "Soil Standards", "Ground Water Standards", "Parameter", "R/P/I", footnote superscripts (1, 2, 12), "*"
-const NOISE_TOKEN_RE = /^(Soil|Ground|Water|Standards?|Parameter|R\/P\/I|\*|\d{1,2})$/i;
+const NOISE_TOKEN_RE = /^(Soil|Ground|Water|Leachate|Quality|Criteria|Standards?|Parameter|R\/P\/I|\*|\d{1,2})$/i;
 
 // A row is an ID row if, after dropping noise tokens, every remaining token is a sample ID.
 function extractIdRow(tokens){
