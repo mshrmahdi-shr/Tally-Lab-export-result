@@ -796,7 +796,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v27.0 · Unified BH test history</span>
+  <span class="ver">v27.1 · Fix mSPLP BH grouping</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -848,6 +848,7 @@ function cleanBhRow(row){
     .replace(TABLE_LABEL_RE, ' ')
     .replace(/\b(Soil|Ground\s*Water)\s*Standards?\b/gi, ' ')
     .replace(/\bLeachate\s+Quality\s+Criteria\b/gi, ' ')
+    .replace(/\bQuality\s+Criteria\b/gi, ' ')
     .replace(/\bStandards?\b/gi, ' ')
     .replace(/^\s*Parameter\s+/i, '')
     .replace(/\bR\/P\/I\b/gi, ' ')
@@ -858,7 +859,10 @@ function cleanBhRow(row){
 // row (e.g. "MW 25-3 1"), but never strip a digit that belongs to the name itself
 // (e.g. "BH 204 SS 1", where the digit follows the SS keyword).
 function cleanBhPart(part, isLast){
-  let p = part.replace(/\s+/g,' ').trim();
+  let p = part
+    .replace(/\b(?:Leachate\s+)?Quality\s+Criteria\b/gi,' ')
+    .replace(/\s+/g,' ')
+    .trim();
   if(!isLast) return p;
   for(;;){
     const m = p.match(/^(.*\S)\s+(\d{1,2}|\*)$/);
@@ -3891,6 +3895,7 @@ function formatFlagList(excCats){
 function normalizeBhLabel(s){
   if(!s) return s;
   return s
+    .replace(/\b(?:Leachate\s+)?Quality\s+Criteria\b/gi, ' ')
     .replace(/\bGrab\s*Sample\s*#?\s*(\d+)/gi, 'GS$1')  // "Grab Sample #1" -> "GS1"
     .replace(/\bGS[\s-]+(\d)/gi, 'GS$1')                 // "GS-1" / "GS 1" -> "GS1"
     .replace(/\b(BH|TP|MW|EMW|SS|SP)\s+(\d)/gi, '$1$2')
@@ -4067,7 +4072,11 @@ function isSampleDup(s){
 // so two genuinely different naming conventions are never silently merged into one.
 function normalizeBoreholeName(raw){
   if(!raw) return '';
-  let s = String(raw).trim().replace(/\s+/g, ' ').toUpperCase();
+  let s = String(raw)
+    .replace(/\b(?:LEACHATE\s+)?QUALITY\s+CRITERIA\b/gi,' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
   // Canonicalize prefix spacing so the same physical location never splits into
   // separate report sections merely because one source says "BH 1" and another "BH1".
   s = s
