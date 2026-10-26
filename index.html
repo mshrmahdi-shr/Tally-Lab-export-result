@@ -283,6 +283,13 @@
   /* ---- rendered report (light card, matches the firm's tally-table style) ---- */
   .copy-btn.dxf-btn{background:var(--accent);color:#171717;border-color:var(--accent);font-weight:700;}
   .copy-btn.dxf-btn:disabled{opacity:.5;cursor:wait;}
+  .dxf-pass{
+    width:76px; min-width:76px; height:30px; padding:3px 7px;
+    border:1px solid #aeb5bf; border-radius:6px; background:#fff; color:#1b1f24;
+    font:12px var(--mono); text-align:center; vertical-align:middle; box-shadow:none;
+  }
+  .dxf-pass:focus{outline:none;border-color:#65758b;box-shadow:0 0 0 2px rgba(101,117,139,.14);}
+  .dxf-pass.bad{border-color:#c0392b;box-shadow:0 0 0 2px rgba(192,57,43,.12);}
   #reportWrap{display:flex; flex-direction:column; gap:28px;}
   .report{
     background:linear-gradient(180deg, #ffffff 0%, #f6f7f9 100%);
@@ -796,7 +803,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v27.1 · Fix mSPLP BH grouping</span>
+  <span class="ver">v27.2 · DXF access lock</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -804,6 +811,43 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 <script src="magic-native-table.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const DXF_PASSWORD_SHA256 = 'c76f23bcaa5e696490473f705a917ee42dea4aeb20babfeb67ab5f12ede8a577';
+
+async function sha256Hex(text){
+  const bytes = new TextEncoder().encode(String(text||''));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function dxfPasswordOK(input){
+  if(!input) return false;
+  const ok = (await sha256Hex(input.value)) === DXF_PASSWORD_SHA256;
+  input.classList.toggle('bad', !ok);
+  if(!ok){ input.value=''; input.focus(); }
+  return ok;
+}
+function attachDxfPasswordBoxes(root){
+  const scope = root || document;
+  scope.querySelectorAll('.dxf-btn').forEach(btn=>{
+    if(btn.previousElementSibling && btn.previousElementSibling.classList.contains('dxf-pass')) return;
+    const input = document.createElement('input');
+    input.type = 'password';
+    input.className = 'dxf-pass';
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label','DXF');
+    btn.parentNode.insertBefore(input, btn);
+  });
+
+  const magicBtn = document.getElementById('magicCsvDxfExportBtn');
+  if(magicBtn && !(magicBtn.previousElementSibling && magicBtn.previousElementSibling.classList.contains('dxf-pass'))){
+    const input = document.createElement('input');
+    input.type = 'password';
+    input.className = 'dxf-pass';
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label','DXF');
+    magicBtn.parentNode.insertBefore(input, magicBtn);
+  }
+}
 
 const CANON_ORDER = ["Metals","VOCs","BTEX","PHC(F1-F4)","PAH","PCBs","EC","SAR","pH","Chlorophenols","OC Pesticides"];
 const DISPLAY_NAME = {Metals:"Metals", VOCs:"VOCs", BTEX:"BTEX", "PHC(F1-F4)":"PHCs (F1-F4)", PAH:"PAH", PCBs:"PCB", EC:"EC", SAR:"SAR", pH:"pH", Chlorophenols:"Chlorophenols", "OC Pesticides":"OC Pesticides"};
@@ -1733,6 +1777,7 @@ function processNow(){
     document.getElementById('copyBtn').style.display='inline-block';
     setStatus('Done.');
     ensureCopyHandler();
+    attachDxfPasswordBoxes(wrap);
     buildBhNavigator();
     state.rerender = processNow; // colour-swatch changes re-render the same inputs live
     saveProjectState();
@@ -3772,7 +3817,7 @@ function ensureCopyHandler(){
   if(_copyHandlerAttached) return;
   _copyHandlerAttached = true;
   const wrap = document.getElementById('reportWrap');
-  wrap.addEventListener('click', (e)=>{
+  wrap.addEventListener('click', async (e)=>{
     // Block-copy / full-table-copy button (must be checked before cell, since the button
     // lives inside a data-copyable cell — button click shouldn't also copy the cell).
     const btn = e.target.closest('.copy-btn');
@@ -3790,6 +3835,9 @@ function ensureCopyHandler(){
     }
     if(btn && btn.dataset.dxfExport){
       e.stopPropagation();
+      const pass = btn.previousElementSibling && btn.previousElementSibling.classList.contains('dxf-pass')
+        ? btn.previousElementSibling : null;
+      if(!(await dxfPasswordOK(pass))) return;
       downloadReportDxf(btn);
       return;
     }
@@ -5273,8 +5321,12 @@ async function magicCsvDxfLoadFile(file){
     magicCsvDxfSetMessage(err.message,true);
   }
 }
-function magicCsvDxfDownload(){
+async function magicCsvDxfDownload(){
   if(!magicCsvDxfState.models.length)return;
+  const btn = document.getElementById('magicCsvDxfExportBtn');
+  const pass = btn && btn.previousElementSibling && btn.previousElementSibling.classList.contains('dxf-pass')
+    ? btn.previousElementSibling : null;
+  if(!(await dxfPasswordOK(pass))) return;
   try{
     downloadNativeDxf(magicCsvDxfState.models,'MAGIC_Contaminant_Tables_'+new Date().toISOString().slice(0,10)+'.dxf',{
       titleFill:document.getElementById('magicCsvDxfTitleFill').value,
@@ -5304,6 +5356,7 @@ function magicCsvDxfClear(){
   input.addEventListener("change",()=>magicCsvDxfLoadFile(input.files[0]));
   document.getElementById("magicCsvDxfMode").addEventListener("change",magicCsvDxfRefresh);
   document.getElementById("magicCsvDxfTitleFill").addEventListener("change",()=>{ if(magicCsvDxfState.models.length) magicCsvDxfRenderPreview(magicCsvDxfState.models); });
+  attachDxfPasswordBoxes(document);
   document.getElementById("magicCsvDxfExportBtn").addEventListener("click",magicCsvDxfDownload);
   document.getElementById("magicCsvDxfClearBtn").addEventListener("click",magicCsvDxfClear);
 })();
