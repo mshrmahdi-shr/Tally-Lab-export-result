@@ -2986,6 +2986,11 @@ function refSummary(ref){
    (or vice versa).  The manual matrix override still forces the whole certificate. */
 function detectPageMatrix(rows, fallback){
   const text = (rows || []).map(r=>typeof r==='string' ? r : r.text).join('\n');
+  const hasLeachate =
+    /\b(?:Metals|VOCs?|BTEX|PHCs?|PAHs?|PCBs?)\s+in\s+Leachate\b/i.test(text) ||
+    /\bLeachate\s+Quality\s+Criteria\b/i.test(text) ||
+    /Analysis\s+Requested:\s*mSPLP/i.test(text);
+  if(hasLeachate) return 'LEACHATE';
   const hasSoil =
     /\b(?:Metals|VOCs?|BTEX|PHCs?|PAHs?|PCBs?|Grain\s+Size)\s+in\s+Soil\b/i.test(text) ||
     /\bSoil\s+Standards?\b/i.test(text) ||
@@ -3007,9 +3012,10 @@ function processCertificate(pages, dateMap){
   const matrixOverride = document.getElementById('matrixSelect').value;
   let matrix = 'SOIL';
   if(matrixOverride === 'auto'){
+    const hasLeachate = allRows.some(r=>/\bin Leachate\b/i.test(r)) || allRows.some(r=>/\bLeachate\s+Quality\s+Criteria\b/i.test(r)) || allRows.some(r=>/Analysis\s+Requested:\s*mSPLP/i.test(r));
     const hasSoil = allRows.some(r=>/\bin Soil\b/i.test(r)) || allRows.some(r=>/\bSoil\s+Standards?\b/i.test(r));
     const hasWater = allRows.some(r=>/\bin Water\b/i.test(r)) || allRows.some(r=>/\bGround\s*Water\s+Standards?\b/i.test(r));
-    matrix = hasSoil && hasWater ? 'MIXED' : (hasWater ? 'GW' : 'SOIL');
+    matrix = hasLeachate && !hasWater ? 'LEACHATE' : (hasSoil && hasWater ? 'MIXED' : (hasWater ? 'GW' : 'SOIL'));
   } else {
     matrix = matrixOverride;
   }
