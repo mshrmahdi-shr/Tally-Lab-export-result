@@ -796,7 +796,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.9 · All-boreholes CSV history</span>
+  <span class="ver">v27.0 · Unified BH test history</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -3570,57 +3570,121 @@ function renderUnifiedBoreholeHistory(samples, ctx, wrap){
       </td></tr>`;
       tsvRows.push([dateLabel, jobLabel, '', '']);
 
-      const byMatrix = {};
+      // One continuous record per physical sample interval within this borehole/date.
+      // Different lab packages (Soil COA, mSPLP, separate standards) are consolidated
+      // by depth so BH4 @ 1.52-2.13m appears ONCE with every test taken across all files.
+      const byDepth = {};
       round.sampleIds.forEach(id=>{
-        const mx = samples[id]._matrix || 'SOIL';
-        (byMatrix[mx] = byMatrix[mx] || []).push(id);
+        const sm = samples[id];
+        const depthKey = sm._depth || sm.depth || '(no depth)';
+        (byDepth[depthKey] = byDepth[depthKey] || []).push(id);
       });
 
-      ['SOIL','GW','LEACHATE'].forEach(mx=>{
-        const ids = byMatrix[mx] || [];
-        if(!ids.length) return;
+      Object.keys(byDepth).sort((a,b)=>{
+        const da = parseTopDepth(a), db = parseTopDepth(b);
+        if(da!=null && db!=null && da!==db) return da-db;
+        return String(a).localeCompare(String(b));
+      }).forEach(depthKey=>{
+        const ids = byDepth[depthKey];
+        const records = ids.map(id=>({id, sm:samples[id]}));
 
-        html += `<tr class="cat-head"><td colspan="4"><b>${esc(matrixDisplayName(mx))}</b></td></tr>`;
-        tsvRows.push([matrixDisplayName(mx),'','','']);
+        const allCats = [];
+        const sampleIds = [];
+        const matrices = [];
+        const standardTags = [];
+        const exceededTags = [];
+        const detailItems = [];
 
-        ids.forEach(id=>{
-          const sm = samples[id];
+        records.forEach(({id,sm})=>{
+          const mx = sm._matrix || 'SOIL';
+          const mxName = matrixDisplayName(mx);
+          if(!matrices.includes(mxName)) matrices.push(mxName);
+          const displayId = sm._displayId || id;
+          if(!sampleIds.includes(displayId)) sampleIds.push(displayId);
+
+          CANON_ORDER.forEach(c=>{
+            if(sm.categories[c] && (!catSet || catSet.has(c)) && !allCats.includes(c)) allCats.push(c);
+          });
+
           const labels = (sm._tableLabels||[]).filter(l=>visibleLabels.includes(l));
           labels.forEach(label=>{
-            const rr = renderSampleRowsForLabel(id, sm, label, catSet);
-            if(!rr) return;
+            const excForLabel = sm.exceed[label] || {};
+            const excCats = CANON_ORDER.filter(c=>excForLabel[c] && (!catSet || catSet.has(c)));
+            const tagBase = mxName + ' • ' + label;
 
-            let rowHtml = rr.html;
-            if(sm.exceed[label] && Object.keys(sm.exceed[label]||{}).length){
-              rowHtml = rowHtml.replace('<td></td></tr>', `<td class="italic">${esc(label)}</td></tr>`);
+            if(excCats.length){
+              const excLabel = tagBase + ': ' + categoryGroups(excCats).map(g=>g.label).join(', ');
+              if(!exceededTags.includes(excLabel)) exceededTags.push(excLabel);
+
+              excCats.forEach(cat=>{
+                (excForLabel[cat]||[]).forEach(p=>{
+                  const item = {
+                    matrix:mxName, label, cat,
+                    name:outputParameterName(p.name,cat),
+                    val:String(p.val), std:String(p.std)
+                  };
+                  const sig = [item.matrix,item.label,item.cat,item.name,item.val,item.std].join('|');
+                  if(!detailItems.some(x=>x.sig===sig)) detailItems.push({...item,sig});
+                });
+              });
+            }else{
+              const okTag = '<' + label + ' SCS (' + mxName + ')';
+              if(!standardTags.includes(okTag)) standardTags.push(okTag);
             }
-            html += rowHtml;
-
-            rr.tsvRows.forEach((r,idx)=>{
-              if(idx===0){
-                const r2 = r.slice();
-                r2[3] = r2[3] || label;
-                tsvRows.push(r2);
-              }else{
-                tsvRows.push(r);
-              }
-            });
-
-            const d = rr.csvData;
-            const csvDate = round.date ? formatLongDate(round.date) : (round.dateRange || 'Unknown Date');
-            const analyses = matrixDisplayName(mx) + ': ' + d.analytes;
-            const compliance = d.complianceText || (d.exceededGroups ? ('Exceeded ' + label) : '');
-            summaryLines.push(csvRow([bh.displayName,csvDate,d.id,d.depth,analyses,d.exceededGroups,compliance]));
-
-            d.detailRows.forEach(dr=>{
-              detailedLines.push(csvRow([
-                bh.displayName,csvDate,d.id,d.depth,analyses,
-                dr.group,dr.parameter,dr.result,dr.standard,
-                dr.parameter ? label : compliance
-              ]));
-            });
           });
         });
+
+        const depth = depthKey === '(no depth)' ? '' : depthKey;
+        const idText = sampleIds.join(' / ') + (depth ? ' ('+depth+')' : '');
+        const analyses = categoryGroups(allCats).map(g=>g.label).join(', ');
+        const resultText = exceededTags.length ? exceededTags.join(' | ') : '';
+        const standardText = standardTags.concat(
+          exceededTags.map(t=>t.split(':')[0])
+        ).filter((v,i,a)=>a.indexOf(v)===i).join(' | ');
+
+        html += `<tr>
+          <td class="sid ${detailItems.length?'exceed':'ok'}" rowspan="${1 + detailItems.length}" data-copyable data-copy="${esc(idText)}">
+            ${esc(sampleIds.join(' / '))}${depth?`<span class="depth">(${esc(depth)})</span>`:''}
+          </td>
+          <td data-copyable data-copy="${esc(analyses)}">${formatCatList(allCats, detailItems.map(x=>x.cat))}</td>
+          <td class="center ${detailItems.length?'exc':''}" data-copyable data-copy="${esc(resultText)}">${esc(resultText)}</td>
+          <td class="italic" data-copyable data-copy="${esc(standardText)}">${esc(standardText)}</td>
+        </tr>`;
+
+        tsvRows.push([idText, analyses, resultText, standardText]);
+
+        detailItems.forEach(item=>{
+          const detailLabel = item.matrix + ' • ' + item.label + ' • ' + (DISPLAY_NAME[item.cat]||item.cat);
+          html += `<tr>
+            <td data-copyable data-copy="${esc(detailLabel + ' — ' + item.name)}"><b class="exc">${esc(detailLabel)}</b><br>${esc(item.name)}</td>
+            <td class="center exc" data-copyable data-copy="${esc(item.val)}">${esc(item.val)}</td>
+            <td class="center" data-copyable data-copy="${esc(item.std)}">${esc(item.std)}</td>
+          </tr>`;
+          tsvRows.push(['', detailLabel + ' — ' + item.name, item.val, item.std]);
+        });
+
+        const csvDate = round.date ? formatLongDate(round.date) : (round.dateRange || 'Unknown Date');
+        const combinedAnalyses = (matrices.length>1 ? ('['+matrices.join(' + ')+'] ') : '') + analyses;
+        const compliance = detailItems.length ? '' : standardText;
+        summaryLines.push(csvRow([
+          bh.displayName,csvDate,sampleIds.join(' / '),depth,
+          combinedAnalyses,exceededTags.join(' | '),compliance
+        ]));
+
+        if(detailItems.length){
+          detailItems.forEach(item=>{
+            detailedLines.push(csvRow([
+              bh.displayName,csvDate,sampleIds.join(' / '),depth,combinedAnalyses,
+              CSV_GROUP_NAME[item.cat]||item.cat,item.name,item.val,item.std,
+              item.matrix + ' • ' + item.label
+            ]));
+          });
+        }else{
+          detailedLines.push(csvRow([
+            bh.displayName,csvDate,sampleIds.join(' / '),depth,combinedAnalyses,
+            '','','','',standardText
+          ]));
+        }
       });
     });
 
