@@ -843,6 +843,7 @@ function cleanBhRow(row){
   return row
     .replace(TABLE_LABEL_RE, ' ')
     .replace(/\b(Soil|Ground\s*Water)\s*Standards?\b/gi, ' ')
+    .replace(/\bLeachate\s+Quality\s+Criteria\b/gi, ' ')
     .replace(/\bStandards?\b/gi, ' ')
     .replace(/^\s*Parameter\s+/i, '')
     .replace(/\bR\/P\/I\b/gi, ' ')
