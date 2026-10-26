@@ -796,7 +796,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.7 · Unified borehole history</span>
+  <span class="ver">v26.8 · One table per borehole</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -1678,19 +1678,29 @@ function processNow(){
       // A mixed certificate is rendered as two independent tally datasets.  The user can
       // switch between Soil, Groundwater, or both without re-uploading the certificate.
       const wantedMatrix = (document.getElementById('resultMatrixSelect')||{}).value || 'ALL';
-      const matrixOrder = wantedMatrix === 'ALL' ? ['SOIL','GW','LEACHATE'] : [wantedMatrix];
       let renderedMatrices = 0;
-      matrixOrder.forEach(mx=>{
+      if(wantedMatrix === 'ALL'){
+        const gwSubset = {};
+        Object.keys(merged.samples).forEach(id=>{
+          if((merged.samples[id]._matrix || 'SOIL') === 'GW') gwSubset[id] = merged.samples[id];
+        });
+        if(Object.keys(gwSubset).length) buildGwDepthPanel(gwSubset);
+        renderedMatrices = renderUnifiedBoreholeHistory(
+          merged.samples,
+          Object.assign({}, merged.ctx, {matrix:'ALL'}),
+          wrap
+        );
+      }else{
         const subset = {};
         Object.keys(merged.samples).forEach(id=>{
-          if((merged.samples[id]._matrix || 'SOIL') === mx) subset[id] = merged.samples[id];
+          if((merged.samples[id]._matrix || 'SOIL') === wantedMatrix) subset[id] = merged.samples[id];
         });
-        if(!Object.keys(subset).length) return;
-        const matrixCtx = Object.assign({}, merged.ctx, {matrix:mx});
-        if(mx === 'GW') buildGwDepthPanel(subset);
-        const added = renderReports({samples:subset, ctx:matrixCtx}, wrap);
-        if(added) renderedMatrices++;
-      });
+        if(Object.keys(subset).length){
+          const matrixCtx = Object.assign({}, merged.ctx, {matrix:wantedMatrix});
+          if(wantedMatrix === 'GW') buildGwDepthPanel(subset);
+          renderedMatrices = renderReports({samples:subset, ctx:matrixCtx}, wrap);
+        }
+      }
     }
 
     if(sitePlanFiles.length){
@@ -3471,6 +3481,163 @@ function pushExceed(bucket, category, name, val, std){
   }
   if(!bucket[category]) bucket[category] = [];
   bucket[category].push({name, val, std});
+}
+
+
+/* ---------- unified Borehole history renderer ----------
+   In "Both" mode the physical Borehole is the top-level report object.
+   Soil / Groundwater / Leachate and different standards are shown as dated
+   sections INSIDE the same Borehole card instead of separate report cards. */
+function matrixDisplayName(mx){
+  if(mx === 'GW') return 'Groundwater';
+  if(mx === 'LEACHATE') return 'Leachate / mSPLP';
+  return 'Soil';
+}
+
+function renderUnifiedBoreholeHistory(samples, ctx, wrap){
+  wrap = wrap || document.getElementById('reportWrap');
+  const boreholes = buildBoreholeHierarchy(samples);
+  const catSet = ctx.visibleCats || null;
+  const visibleLabels = ctx.visibleTables
+    ? ctx.tableLabels.filter(l=>ctx.visibleTables.has(l))
+    : ctx.tableLabels.slice();
+
+  let appended = 0;
+  boreholes.forEach((bh, bi)=>{
+    const rounds = bh.roundOrder.map(dateKey=>{
+      const r = bh.rounds[dateKey];
+      const ids = r.sampleIds.filter(id=>{
+        const sm = samples[id];
+        const hasCat = CANON_ORDER.some(c=>sm.categories[c] && (!catSet || catSet.has(c)));
+        const hasLabel = (sm._tableLabels||[]).some(l=>visibleLabels.includes(l));
+        return hasCat && hasLabel;
+      });
+      return Object.assign({}, r, {sampleIds:ids});
+    }).filter(r=>r.sampleIds.length);
+
+    if(!rounds.length) return;
+
+    const el = document.createElement('div');
+    el.className = 'report report--theme-neutral';
+
+    const blockId = 'unified_bh_' + bi;
+    const summaryKey = 'unified_sum_' + bi;
+    const detailedKey = 'unified_det_' + bi;
+
+    const SUMMARY_HEADER = 'BH,Date,SampleID,Depth,Analyses,ExceededGroups,ComplianceText';
+    const DETAILED_HEADER = 'BH,Date,SampleID,Depth,Analyses,ExceededGroup,Parameter,ResultValue,StandardValue,ComplianceText';
+    const summaryLines = [SUMMARY_HEADER];
+    const detailedLines = [DETAILED_HEADER];
+    const tsvRows = [[bh.displayName,'','','']];
+
+    let html = `<div class="report-head">
+      <div>
+        <h2>${esc(bh.displayName)} — Complete Borehole History</h2>
+        <p class="meta">All sampling rounds and matrices for this borehole are consolidated below.</p>
+      </div>
+      <div class="report-actions">
+        <button class="copy-btn" data-copy-block="${blockId}">📋 Copy full history</button>
+        <button class="copy-btn" data-csv-export="${summaryKey}">⬇ SUMMARY CSV</button>
+        <button class="copy-btn" data-csv-export="${detailedKey}">⬇ DETAILED CSV</button>
+      </div>
+    </div>
+    <table class="tally">
+      <thead><tr>
+        <th>Sample ID,<br>(Sample Depth)</th>
+        <th>Method Group or<br>Parameter Analyzed</th>
+        <th>Result /<br>Exceedance</th>
+        <th>Applicable Standard</th>
+      </tr></thead><tbody>
+      <tr class="bh-row"><td colspan="4">
+        <span class="bh-name">${esc(bh.displayName)}</span>
+        <span class="bh-rounds-count">${rounds.length} sampling round${rounds.length===1?'':'s'}</span>
+        <button class="copy-btn rename-btn" data-rename-bh="${esc(bh.name)}" data-rename-current="${esc(bh.displayName)}">✏️ Rename</button>
+      </td></tr>`;
+
+    rounds.forEach(round=>{
+      const dateLabel = round.date ? formatLongDate(round.date) : (round.dateRange || 'Unknown Date');
+      const jobLabel = round.labJob ? ('Job ' + round.labJob) : '';
+
+      html += `<tr class="round-subhead"><td colspan="4">
+        <span class="round-date">${esc(dateLabel)}</span>${jobLabel?` <span class="round-job">(${esc(jobLabel)})</span>`:''}
+      </td></tr>`;
+      tsvRows.push([dateLabel, jobLabel, '', '']);
+
+      const byMatrix = {};
+      round.sampleIds.forEach(id=>{
+        const mx = samples[id]._matrix || 'SOIL';
+        (byMatrix[mx] = byMatrix[mx] || []).push(id);
+      });
+
+      ['SOIL','GW','LEACHATE'].forEach(mx=>{
+        const ids = byMatrix[mx] || [];
+        if(!ids.length) return;
+
+        html += `<tr class="cat-head"><td colspan="4"><b>${esc(matrixDisplayName(mx))}</b></td></tr>`;
+        tsvRows.push([matrixDisplayName(mx),'','','']);
+
+        ids.forEach(id=>{
+          const sm = samples[id];
+          const labels = (sm._tableLabels||[]).filter(l=>visibleLabels.includes(l));
+          labels.forEach(label=>{
+            const rr = renderSampleRowsForLabel(id, sm, label, catSet);
+            if(!rr) return;
+
+            let rowHtml = rr.html;
+            if(sm.exceed[label] && Object.keys(sm.exceed[label]||{}).length){
+              rowHtml = rowHtml.replace('<td></td></tr>', `<td class="italic">${esc(label)}</td></tr>`);
+            }
+            html += rowHtml;
+
+            rr.tsvRows.forEach((r,idx)=>{
+              if(idx===0){
+                const r2 = r.slice();
+                r2[3] = r2[3] || label;
+                tsvRows.push(r2);
+              }else{
+                tsvRows.push(r);
+              }
+            });
+
+            const d = rr.csvData;
+            const csvDate = round.date ? formatLongDate(round.date) : (round.dateRange || 'Unknown Date');
+            const analyses = matrixDisplayName(mx) + ': ' + d.analytes;
+            const compliance = d.complianceText || (d.exceededGroups ? ('Exceeded ' + label) : '');
+            summaryLines.push(csvRow([bh.displayName,csvDate,d.id,d.depth,analyses,d.exceededGroups,compliance]));
+
+            d.detailRows.forEach(dr=>{
+              detailedLines.push(csvRow([
+                bh.displayName,csvDate,d.id,d.depth,analyses,
+                dr.group,dr.parameter,dr.result,dr.standard,
+                dr.parameter ? label : compliance
+              ]));
+            });
+          });
+        });
+      });
+    });
+
+    html += '</tbody></table>';
+    el.innerHTML = html;
+
+    (window._copyBlocks = window._copyBlocks || {})[blockId] = {
+      tsv: tsvRows.map(r=>r.join('\t')).join('\n'),
+      html: tsvRowsToClipHtml(tsvRows, 'neutral')
+    };
+    (window._csvExports = window._csvExports || {})[summaryKey] = {
+      name: safeFileName(bh.displayName + '_Complete_History_Summary') + '.csv',
+      text: summaryLines.join('\r\n')
+    };
+    (window._csvExports = window._csvExports || {})[detailedKey] = {
+      name: safeFileName(bh.displayName + '_Complete_History_Detailed') + '.csv',
+      text: detailedLines.join('\r\n')
+    };
+
+    wrap.appendChild(el);
+    appended++;
+  });
+
+  return appended;
 }
 
 /* ---------- report rendering (one styled tally table per detected standards column) ---------- */
