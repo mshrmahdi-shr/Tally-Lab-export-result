@@ -796,7 +796,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.8 · One table per borehole</span>
+  <span class="ver">v26.9 · All-boreholes CSV history</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -3502,6 +3502,13 @@ function renderUnifiedBoreholeHistory(samples, ctx, wrap){
     ? ctx.tableLabels.filter(l=>ctx.visibleTables.has(l))
     : ctx.tableLabels.slice();
 
+  const ALL_SUMMARY_KEY = 'unified_all_summary';
+  const ALL_DETAILED_KEY = 'unified_all_detailed';
+  const ALL_SUMMARY_HEADER = 'BH,Date,SampleID,Depth,Analyses,ExceededGroups,ComplianceText';
+  const ALL_DETAILED_HEADER = 'BH,Date,SampleID,Depth,Analyses,ExceededGroup,Parameter,ResultValue,StandardValue,ComplianceText';
+  const allSummaryLines = [ALL_SUMMARY_HEADER];
+  const allDetailedLines = [ALL_DETAILED_HEADER];
+
   let appended = 0;
   boreholes.forEach((bh, bi)=>{
     const rounds = bh.roundOrder.map(dateKey=>{
@@ -3633,9 +3640,39 @@ function renderUnifiedBoreholeHistory(samples, ctx, wrap){
       text: detailedLines.join('\r\n')
     };
 
+    // Also append this borehole's rows to the project-wide CSV exports.
+    allSummaryLines.push(...summaryLines.slice(1));
+    allDetailedLines.push(...detailedLines.slice(1));
+
     wrap.appendChild(el);
     appended++;
   });
+
+  if(appended){
+    (window._csvExports = window._csvExports || {})[ALL_SUMMARY_KEY] = {
+      name: 'Project_All_Boreholes_History_Summary.csv',
+      text: allSummaryLines.join('\r\n')
+    };
+    (window._csvExports = window._csvExports || {})[ALL_DETAILED_KEY] = {
+      name: 'Project_All_Boreholes_History_Detailed.csv',
+      text: allDetailedLines.join('\r\n')
+    };
+
+    const allBar = document.createElement('div');
+    allBar.className = 'report';
+    allBar.innerHTML = `
+      <div class="report-head">
+        <div>
+          <h2>All Boreholes — Complete Project History</h2>
+          <p class="meta">Exports every borehole, every sampling date, and every matrix in one CSV.</p>
+        </div>
+        <div class="report-actions">
+          <button class="copy-btn" data-csv-export="${ALL_SUMMARY_KEY}">⬇ ALL SUMMARY CSV</button>
+          <button class="copy-btn" data-csv-export="${ALL_DETAILED_KEY}">⬇ ALL DETAILED CSV</button>
+        </div>
+      </div>`;
+    wrap.insertBefore(allBar, wrap.firstChild);
+  }
 
   return appended;
 }
