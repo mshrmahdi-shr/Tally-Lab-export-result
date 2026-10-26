@@ -796,7 +796,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
 
 <footer>
   <span>Written by M.Sharif</span>
-  <span class="ver">v26.6.1 · mSPLP Leachate support</span>
+  <span class="ver">v26.7 · Unified borehole history</span>
   <button type="button" id="clearProjectBtn" class="ghost" style="padding:4px 12px; font-size:11px;" title="Delete the CURRENT project from this browser (other saved projects are unaffected)">🗑️ Delete current project</button>
 </footer>
 
@@ -3243,7 +3243,51 @@ function mergeCertificates(perFile, bhDepthMap, bhDepthDateMap){
       if(cocDate && !state.sampleDateOverrides[id]) s._dateRange = null;
 
       s._tableLabels = ctx.tableLabels.slice();
-      samples[id] = s;
+      s._displayId = s._displayId || id;
+
+      // The same laboratory Sample ID can appear in several uploaded reports
+      // (e.g. regular Soil COA + mSPLP Leachate, or separate analyte packages).
+      // Never overwrite the earlier record.  Merge only when it is truly the same
+      // physical sample/round/matrix/depth; otherwise keep a distinct internal key
+      // while preserving the original Sample ID for display/CSV.
+      const mergeSig = [
+        s._matrix || '',
+        normalizeBoreholeName((s.bh||'').replace(DUP_TAG_RE,' ')),
+        s._date || s._dateRange || '',
+        s._depth || ''
+      ].join('|');
+
+      let targetKey = id;
+      if(samples[targetKey]){
+        const prev = samples[targetKey];
+        const prevSig = [
+          prev._matrix || '',
+          normalizeBoreholeName((prev.bh||'').replace(DUP_TAG_RE,' ')),
+          prev._date || prev._dateRange || '',
+          prev._depth || ''
+        ].join('|');
+
+        if(prevSig === mergeSig){
+          Object.keys(s.categories||{}).forEach(c=>{ prev.categories[c] = prev.categories[c] || s.categories[c]; });
+          Object.keys(s.exceed||{}).forEach(lbl=>{
+            if(!prev.exceed[lbl]) prev.exceed[lbl] = {};
+            Object.keys(s.exceed[lbl]||{}).forEach(cat=>{
+              if(!prev.exceed[lbl][cat]) prev.exceed[lbl][cat] = [];
+              (s.exceed[lbl][cat]||[]).forEach(e=>{
+                if(!prev.exceed[lbl][cat].some(x=>x.name===e.name && x.val===e.val && x.std===e.std)) prev.exceed[lbl][cat].push(e);
+              });
+            });
+          });
+          (s._tableLabels||[]).forEach(l=>{ if(!prev._tableLabels.includes(l)) prev._tableLabels.push(l); });
+          if(s.isDup) prev.isDup = true;
+          return;
+        }
+
+        let n = 2;
+        targetKey = id + '::' + (s._matrix||'M') + '::' + n;
+        while(samples[targetKey]) targetKey = id + '::' + (s._matrix||'M') + '::' + (++n);
+      }
+      samples[targetKey] = s;
     });
   });
 
@@ -3756,6 +3800,13 @@ function isSampleDup(s){
 function normalizeBoreholeName(raw){
   if(!raw) return '';
   let s = String(raw).trim().replace(/\s+/g, ' ').toUpperCase();
+  // Canonicalize prefix spacing so the same physical location never splits into
+  // separate report sections merely because one source says "BH 1" and another "BH1".
+  s = s
+    .replace(/^BH\s*0*(\d+)([A-Z]?)(.*)$/i, 'BH$1$2$3')
+    .replace(/^TP\s*0*(\d+)([A-Z]?)(.*)$/i, 'TP$1$2$3')
+    .replace(/^MW\s*0*(\d+)(?:\s*-\s*0*(\d+))?([A-Z]?)(.*)$/i, function(_,a,b,c,d){ return 'MW'+a+(b?'-'+b:'')+(c||'')+(d||''); })
+    .replace(/^VP[\s-]*0*(\d+)([A-Z]?)(.*)$/i, 'VP-$1$2$3');
   // Alias: labs write surface grabs as "Grab Sample #1" on certificates but "GS1"/"GS-1"
   // on figures — same physical point, so canonicalize the long form to the short one.
   s = s.replace(/^GRAB\s*SAMPLE\s*#?\s*(\d+)$/, 'GS$1').replace(/^GS[\s-]*(\d+)$/, 'GS$1');
@@ -3798,8 +3849,10 @@ function naturalCompareBhName(a, b){
 
 // Sample IDs are "{jobNo}-{n}"; natural ordering is by the trailing sequence number.
 function naturalCompareSampleId(a, b){
-  const na = parseInt((a.match(/-(\d+)$/)||[0,0])[1], 10);
-  const nb = parseInt((b.match(/-(\d+)$/)||[0,0])[1], 10);
+  const da = (arguments.length > 2 && arguments[2] && arguments[2][a] && arguments[2][a]._displayId) || a;
+  const db = (arguments.length > 2 && arguments[2] && arguments[2][b] && arguments[2][b]._displayId) || b;
+  const na = parseInt((String(da).match(/-(\d+)$/)||[0,0])[1], 10);
+  const nb = parseInt((String(db).match(/-(\d+)$/)||[0,0])[1], 10);
   return na - nb;
 }
 
@@ -3908,7 +3961,7 @@ function buildBoreholeHierarchy(samples){
         if(da != null && db != null && da !== db) return da - db;
         if(da != null && db == null) return -1;
         if(da == null && db != null) return 1;
-        return naturalCompareSampleId(a,b);
+        return naturalCompareSampleId(a,b,samples);
       });
     });
 
@@ -3954,7 +4007,8 @@ function renderSampleRowsForLabel(id, s, label, catSet){
 
   const dup = isSampleDup(s);
   const depth = s._depth || s.depth || null;
-  const idLabel = id + (dup ? ' (Field Duplicate)' : '');
+  const displayId = s._displayId || id;
+  const idLabel = displayId + (dup ? ' (Field Duplicate)' : '');
   const idCellText = idLabel + (depth ? ' ('+depth+')' : '');
 
   const analyteListPlain = categoryGroups(cats).map(group=>group.label).join(', ');
