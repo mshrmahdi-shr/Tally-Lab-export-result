@@ -687,6 +687,7 @@ Apr 23, 2007	Apr 23, 2007" style="width:100%; margin-top:8px; background:#1a1b1e
           <option value="ALL" selected="">Both Soil + Groundwater</option>
           <option value="SOIL">Soil only</option>
           <option value="GW">Groundwater only</option>
+          <option value="LEACHATE">Leachate / mSPLP only</option>
         </select>
       </div>
       <div class="field">
@@ -1672,7 +1673,7 @@ function processNow(){
       // A mixed certificate is rendered as two independent tally datasets.  The user can
       // switch between Soil, Groundwater, or both without re-uploading the certificate.
       const wantedMatrix = (document.getElementById('resultMatrixSelect')||{}).value || 'ALL';
-      const matrixOrder = wantedMatrix === 'ALL' ? ['SOIL','GW'] : [wantedMatrix];
+      const matrixOrder = wantedMatrix === 'ALL' ? ['SOIL','GW','LEACHATE'] : [wantedMatrix];
       let renderedMatrices = 0;
       matrixOrder.forEach(mx=>{
         const subset = {};
